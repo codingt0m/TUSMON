@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUSMON</title>
+    <!-- Favicon -->
+    <link rel="icon" href="./ressources/favicon.ico" type="image/x-icon">
+    
+    <!-- AJOUT 1 : Lien vers le fichier CSS -->
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+    <!-- LOGO CLIQUEABLE AVEC EASTER EGG -->
+    <h1 onclick="handleLogoClick()" title="Retour au menu">TUS<span class="white-text">MON</span></h1>
+
+    <div id="status-area">Chargement du Pokédex...</div>
+
+    <!-- MENU D'ACCUEIL -->
+    <div id="menu-screen">
+        <div class="menu-section">
+            <div class="menu-title">Défi Quotidien</div>
+            <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
+            <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-title">Mode Aléatoire</div>
+            <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
+            
+            <!-- Bouton tout cocher -->
+            <div style="text-align: center;">
+                <button class="mini-btn" onclick="selectAllGens()">Tout cocher</button>
+            </div>
+
+            <div id="gen-filters"></div>
+            <button class="menu-btn random" onclick="startRandomGame()">JOUER EN ALÉATOIRE</button>
+        </div>
+    </div>
+
+    <!-- POPUP IMAGE GENERATION -->
+    <div id="gen-popup">
+        <img id="gen-img" src="" alt="Image Génération">
+    </div>
+
+    <!-- ZONE DE JEU -->
+    <div id="game-area">
+        <div id="info-bar">
+            <div id="mode-badge">POKÉMON DU JOUR</div>
+            <div id="hint-box">
+                <!-- Ajout des événements de survol ici -->
+                <div id="hint-gen" class="hint-tag" onmouseenter="showGenPopup()" onmouseleave="hideGenPopup()">
+                    <span class="hint-label" id="lbl-gen">GÉN:</span><span class="hint-value" id="val-gen"></span>
+                </div>
+                <div id="hint-stage" class="hint-tag"><span class="hint-label">STADE:</span><span class="hint-value" id="val-stage"></span></div>
+                <div id="hint-type" class="hint-tag"><span class="hint-label">TYPE:</span><span class="hint-value" id="val-type"></span></div>
+            </div>
+        </div>
+
+        <div id="board"></div>
+        
+        <!-- Image résultat fin de partie (déplacé au-dessus du texte) -->
+        <img id="pokemon-result-image" src="" alt="Pokémon">
+        
+        <div id="message"></div>
+        
+        <div id="keyboard-cont"></div>
+        
+        <div id="controls">
+            <button id="menu-return-btn" class="action-btn" onclick="showMenu()">Menu</button>
+            <button id="skip-btn" class="action-btn" onclick="skipToClassic()">Passer au mode Classique</button>
+            <button id="giveup-btn" class="action-btn" onclick="giveUp()">Abandonner</button>
+            <button id="restart-btn" class="action-btn" onclick="restartCurrentMode()">Rejouer</button>
+        </div>
+    </div>
+
+    <!-- AJOUT 2 : Lien vers le fichier JavaScript -->
+    <script src="script.js"></script>
+
+</body>
+</html>
