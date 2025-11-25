@@ -316,6 +316,11 @@
         }
         
         .keyboard-button.wide { flex: 1.5; font-size: 0.75rem; max-width: 60px; }
+        
+        /* MODIFICATIONS POUR LES TOUCHES SPÉCIALES */
+        .keyboard-button.btn-enter { background-color: #538d4e; } /* Vert */
+        .keyboard-button.btn-back { background-color: #d9534f; } /* Rouge (comme abandonner) */
+        
         .keyboard-button:active { opacity: 0.7; }
         .keyboard-button.correct { background-color: var(--correct); }
         .keyboard-button.present { background-color: var(--present); }
