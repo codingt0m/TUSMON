@@ -129,6 +129,21 @@ function selectAllGens() {
     checkboxes.forEach(cb => cb.checked = !allChecked);
 }
 
+// --- GESTION DU LOGO ET EASTER EGG ---
+function handleLogoClick() {
+    // Si on est sur le menu, on compte les clics pour l'Easter Egg
+    if (menuScreen.style.display !== 'none') {
+        logoClickCount++;
+        if (logoClickCount > 3) {
+            triggerPokeballRain();
+            logoClickCount = 0; // Reset
+        }
+    } else {
+        // Si on est en jeu, on retourne au menu
+        showMenu();
+    }
+}
+
 function showMenu() {
     gameArea.style.display = 'none';
     menuScreen.style.display = 'flex';
@@ -393,11 +408,6 @@ function setupGameUI() {
     }
 
     currentGuess = targetWord[0];
-    // Suppression de la boucle de remplissage automatique des tirets/points pour éviter le blocage
-    /* while (currentGuess.length < wordLength && (targetWord[currentGuess.length] === '-' || targetWord[currentGuess.length] === '.')) {
-        currentGuess += targetWord[currentGuess.length];
-    }
-    */
     fixedLength = 1; 
 
     board.innerHTML = "";
