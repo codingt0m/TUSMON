@@ -9,6 +9,7 @@ const firebaseConfig = {
   appId: "1:314364969676:web:e726b1d25f75a6740ef869"
 };
 
+
 // Initialiser Firebase
 // (On suppose que les scripts CDN dans le HTML ont bien chargé l'objet "firebase")
 if (typeof firebase !== 'undefined') {
@@ -131,10 +132,39 @@ function updateAuthUI(user) {
                 // Ignore les anciens formats non-JSON
             }
         }
+
+        // NOUVEAU : On vérifie immédiatement sur le serveur si le joueur a déjà joué aujourd'hui
+        // (Empêche de rejouer en changeant de navigateur)
+        checkRemoteDailyStatus();
+
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
     }
+}
+
+// FONCTION UTILITAIRE : Vérifier si le joueur a déjà un score sur le serveur
+function checkRemoteDailyStatus() {
+    if (!currentUser || !db) return;
+    
+    const todayKey = getTodayDateKey();
+    const btnDaily = document.getElementById('btn-daily-start');
+
+    db.collection('daily_scores').doc(todayKey).collection('players').doc(currentUser.uid).get()
+    .then((docSnapshot) => {
+        if (docSnapshot.exists) {
+            console.log("Score distant trouvé. Blocage du bouton jouer.");
+            if (btnDaily) {
+                btnDaily.disabled = true;
+                btnDaily.textContent = "DÉJÀ JOUÉ (Compte)";
+                // Sécurité supplémentaire : on met à jour le local storage pour éviter le délai au prochain refresh
+                // On utilise un marqueur simple si pas de données locales
+                if (!localStorage.getItem('tusmon_daily_' + todayKey)) {
+                     localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({status: 'completed', remote: true}));
+                }
+            }
+        }
+    }).catch(err => console.error("Erreur vérif score distant:", err));
 }
 
 // 3. Charger le Leaderboard
@@ -195,6 +225,8 @@ function saveScoreToFirebase(won, attempts) {
             console.log("Score déjà existant en base. Pas d'écrasement.");
             // On peut recharger le leaderboard au cas où
             loadLeaderboard();
+            // On s'assure que le bouton est bien bloqué
+            checkRemoteDailyStatus();
         } else {
             // Pas de score, on enregistre
             userScoreRef.set({
@@ -206,6 +238,7 @@ function saveScoreToFirebase(won, attempts) {
             .then(() => {
                 console.log("Score envoyé avec succès !");
                 loadLeaderboard(); 
+                checkRemoteDailyStatus(); // Bloquer le bouton après envoi
             })
             .catch((error) => console.error("Erreur envoi score:", error));
         }
@@ -337,12 +370,18 @@ function showMenu() {
     const todayKey = getTodayDateKey();
     const hasPlayedDaily = localStorage.getItem('tusmon_daily_' + todayKey);
     
+    // 1. Check local (rapide)
     if (hasPlayedDaily) {
         btnDailyStart.disabled = true;
         btnDailyStart.textContent = "DÉJÀ JOUÉ AUJOURD'HUI";
     } else {
         btnDailyStart.disabled = false;
         btnDailyStart.textContent = "JOUER AU POKÉMON DU JOUR";
+    }
+
+    // 2. Check distant (sécurité si connecté)
+    if (currentUser) {
+        checkRemoteDailyStatus();
     }
 }
 
