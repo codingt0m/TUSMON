@@ -1,3 +1,27 @@
+// --- CONFIGURATION FIREBASE ---
+// REMPLACE CES VALEURS PAR CELLES DE TON PROJET FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyC1br7adugwF2klTk2CErFSEYkEY9YgmpY",
+  authDomain: "tusmon-34b35.firebaseapp.com",
+  projectId: "tusmon-34b35",
+  storageBucket: "tusmon-34b35.firebasestorage.app",
+  messagingSenderId: "314364969676",
+  appId: "1:314364969676:web:e726b1d25f75a6740ef869"
+};
+
+// Initialiser Firebase
+// (On suppose que les scripts CDN dans le HTML ont bien chargé l'objet "firebase")
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+} else {
+    console.error("Firebase SDK non trouvé !");
+}
+
+const auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
+const db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
+let currentUser = null;
+
+// --- VARIABLES DU JEU ---
 let pokemonList = []; 
 let gamePool = [];    
 let targetPokemon = null; 
@@ -51,9 +75,148 @@ const genImg = document.getElementById('gen-img');
 
 const keyboardLayout = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"];
 
+// --- GESTION FIREBASE (AUTH & LEADERBOARD) ---
+
+// 1. Connexion Twitter
+function loginWithTwitter() {
+    if (!auth) return;
+    const provider = new firebase.auth.TwitterAuthProvider();
+    auth.signInWithPopup(provider)
+        .then((result) => {
+            // Tentative de récupération du handle (username sans @)
+            const twitterHandle = result.additionalUserInfo?.username;
+            
+            // Si on a le handle, on met à jour le profil (pour l'avoir dans currentUser.displayName)
+            // Sinon Firebase utilise le nom complet par défaut
+            if(twitterHandle) {
+                 result.user.updateProfile({ displayName: '@' + twitterHandle }).then(() => {
+                     updateAuthUI(result.user);
+                 });
+            } else {
+                updateAuthUI(result.user);
+            }
+            loadLeaderboard(); 
+        }).catch((error) => {
+            console.error(error);
+            alert("Erreur de connexion Twitter : " + error.message);
+        });
+}
+
+// 2. Mise à jour de l'interface de connexion
+function updateAuthUI(user) {
+    currentUser = user;
+    const btnLogin = document.getElementById('btn-twitter-login');
+    const txtInfo = document.getElementById('user-info');
+
+    if (user) {
+        const handle = user.displayName || "Joueur";
+        btnLogin.style.display = 'none';
+        txtInfo.style.display = 'block';
+        txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
+        
+        // Si le joueur a déjà fini le jeu aujourd'hui mais n'était pas connecté
+        // on tente d'envoyer son score maintenant
+        const todayKey = getTodayDateKey();
+        if (localStorage.getItem('tusmon_daily_' + todayKey) === 'completed') {
+             // On ne peut pas facilement récupérer le score exact s'il a refresh
+             // Mais s'il vient de finir la partie, les variables globales (currentRow) sont encore là
+             if (!isGameOver || currentRow > 0) { 
+                 // Logique de récupération 'best effort' ou on attend la prochaine partie
+             }
+        }
+    } else {
+        btnLogin.style.display = 'inline-block';
+        txtInfo.style.display = 'none';
+    }
+}
+
+// 3. Charger le Leaderboard
+function loadLeaderboard() {
+    if (!db) return;
+    const dateKey = getTodayDateKey();
+    const leaderboardDiv = document.getElementById('leaderboard-container');
+    
+    // Requête : Trier par "réussite" (les gagnants d'abord), puis par nombre d'essais, puis par date
+    db.collection('daily_scores').doc(dateKey).collection('players')
+        .orderBy('won', 'desc') 
+        .orderBy('attempts', 'asc') 
+        .orderBy('timestamp', 'asc') 
+        .limit(5)
+        .get()
+        .then((querySnapshot) => {
+            if (querySnapshot.empty) {
+                leaderboardDiv.innerHTML = '<p style="text-align:center; color:#888;">Soyez le premier à gagner !</p>';
+                return;
+            }
+
+            let html = '<table>';
+            let rank = 1;
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const scoreDisplay = data.won ? `${data.attempts}/6` : 'X/6';
+                const color = data.won ? '#538d4e' : '#d9534f';
+                const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
+                
+                html += `<tr style="${styles}">
+                            <td style="width:20px;">#${rank}</td>
+                            <td>${data.handle || 'Anonyme'}</td>
+                            <td style="text-align:right; color:${color}">${scoreDisplay}</td>
+                         </tr>`;
+                rank++;
+            });
+            html += '</table>';
+            leaderboardDiv.innerHTML = html;
+        })
+        .catch((error) => {
+            console.error("Erreur leaderboard:", error);
+            leaderboardDiv.innerHTML = '<p style="text-align:center; color:#d9534f;">Erreur chargement...</p>';
+        });
+}
+
+// 4. Sauvegarder le score
+function saveScoreToFirebase(won, attempts) {
+    if (!currentUser || gameMode !== 'daily' || !db) return;
+
+    const dateKey = getTodayDateKey();
+    const userHandle = currentUser.displayName || "Joueur";
+
+    // On utilise set() avec merge:true pour éviter d'écraser s'il y a d'autres infos, 
+    // mais ici on veut surtout s'assurer qu'on n'enregistre qu'une fois par jour.
+    // Idéalement, on vérifie si le doc existe déjà pour ne pas écraser un meilleur score,
+    // mais pour un Wordle, on ne joue qu'une fois par jour.
+    
+    db.collection('daily_scores').doc(dateKey).collection('players').doc(currentUser.uid).set({
+        handle: userHandle,
+        attempts: attempts,
+        won: won,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+        console.log("Score envoyé !");
+        loadLeaderboard(); 
+    })
+    .catch((error) => console.error("Erreur envoi score:", error));
+}
+
+
 // --- INIT ---
 window.addEventListener('DOMContentLoaded', () => {
     initKeyboard();
+
+    // Écouteur Auth Firebase
+    if (auth) {
+        auth.onAuthStateChanged((user) => {
+            updateAuthUI(user);
+            loadLeaderboard(); 
+        });
+    }
+
+    // Écouteur Bouton Twitter
+    const btnLogin = document.getElementById('btn-twitter-login');
+    if (btnLogin) {
+        btnLogin.addEventListener('click', loginWithTwitter);
+    }
+
     fetch('./ressources/Poke DATA.csv')
         .then(response => {
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
@@ -150,6 +313,11 @@ function showMenu() {
     isGameOver = true; 
     logoClickCount = 0; // Reset compteur au retour menu
     
+    // Au retour au menu, on recharge le leaderboard pour être sûr qu'il est à jour
+    if (gameMode === 'daily') {
+        loadLeaderboard();
+    }
+
     const todayKey = getTodayDateKey();
     const hasPlayedDaily = localStorage.getItem('tusmon_daily_' + todayKey);
     
@@ -731,6 +899,13 @@ function endGame(isVictory, isShiny = false) {
         const todayKey = getTodayDateKey();
         localStorage.setItem('tusmon_daily_' + todayKey, 'completed');
         restartBtn.style.display = "none"; 
+
+        // --- ENVOI SCORE FIREBASE ---
+        // Le nombre de coups est (currentRow + 1)
+        let attemptsCount = currentRow + 1;
+        saveScoreToFirebase(isVictory, attemptsCount);
+        // ----------------------------
+        
     } else {
         restartBtn.style.display = "inline-block"; 
     }

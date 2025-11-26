@@ -25,6 +25,24 @@
             <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
         </div>
 
+        <!-- SECTION LEADERBOARD (NOUVEAU) -->
+        <div class="menu-section">
+            <div class="menu-title">Classement du Jour 🏆</div>
+            
+            <!-- Zone de connexion -->
+            <div id="auth-section" style="text-align: center; margin-bottom: 10px;">
+                <button id="btn-twitter-login" class="menu-btn" style="background-color: #1DA1F2; margin-top:5px; color: white;">
+                    Se connecter avec Twitter
+                </button>
+                <p id="user-info" style="color: #aaa; font-size: 0.8rem; display:none;"></p>
+            </div>
+
+            <!-- Le Tableau des scores -->
+            <div id="leaderboard-container" style="background: #222; padding: 10px; border-radius: 5px; min-height: 100px;">
+                <p style="text-align:center; color:#666; font-size:0.8rem;">Chargement...</p>
+            </div>
+        </div>
+
         <div class="menu-section">
             <div class="menu-title">Mode Aléatoire</div>
             <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
@@ -74,6 +92,11 @@
             <button id="restart-btn" class="action-btn" onclick="restartCurrentMode()">Rejouer</button>
         </div>
     </div>
+
+    <!-- SDK FIREBASE (Requis pour l'auth et la db) - AJOUTÉ ICI -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <!-- AJOUT 2 : Lien vers le fichier JavaScript -->
     <script src="script.js"></script>

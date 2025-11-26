@@ -170,6 +170,58 @@ h1 .white-text { color: #ffffff; }
 }
 .mini-btn:hover { background-color: #555; }
 
+/* --- LEADERBOARD & AUTH (Nouveaux Styles) --- */
+#auth-section {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+#btn-twitter-login {
+    background-color: #1DA1F2; /* Bleu Twitter Officiel */
+    color: white;
+    margin-top: 5px;
+    width: 100%;
+}
+#btn-twitter-login:hover {
+    background-color: #0c85d0;
+}
+
+#user-info {
+    color: #aaa;
+    font-size: 0.8rem;
+    margin-top: 8px;
+    background: #111;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+#leaderboard-container {
+    background-color: #222;
+    padding: 10px;
+    border-radius: 5px;
+    min-height: 100px;
+    margin-top: 5px;
+    border: 1px solid var(--border);
+}
+
+/* Styles pour la table générée par le JS */
+#leaderboard-container table {
+    width: 100%;
+    font-size: 0.9rem;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+#leaderboard-container td {
+    padding: 6px 4px;
+    border-bottom: 1px solid #333;
+}
+
+#leaderboard-container tr:last-child td {
+    border-bottom: none;
+}
+
 /* --- JEU --- */
 #game-area { 
     display: none; 
