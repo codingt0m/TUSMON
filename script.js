@@ -114,15 +114,22 @@ function updateAuthUI(user) {
         txtInfo.style.display = 'block';
         txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
         
-        // Si le joueur a déjà fini le jeu aujourd'hui mais n'était pas connecté
-        // on tente d'envoyer son score maintenant
+        // MODIFICATION : Vérification du score local en attente de synchronisation
         const todayKey = getTodayDateKey();
-        if (localStorage.getItem('tusmon_daily_' + todayKey) === 'completed') {
-             // On ne peut pas facilement récupérer le score exact s'il a refresh
-             // Mais s'il vient de finir la partie, les variables globales (currentRow) sont encore là
-             if (!isGameOver || currentRow > 0) { 
-                 // Logique de récupération 'best effort' ou on attend la prochaine partie
-             }
+        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+        
+        if (storedData) {
+            try {
+                // On vérifie si c'est le nouveau format JSON
+                // (Si l'utilisateur a joué avant de se connecter)
+                const result = JSON.parse(storedData);
+                if (result && result.status === 'completed') {
+                    console.log("Score local trouvé. Synchronisation...");
+                    saveScoreToFirebase(result.won, result.attempts);
+                }
+            } catch (e) {
+                // Ignore les anciens formats non-JSON
+            }
         }
     } else {
         btnLogin.style.display = 'inline-block';
@@ -173,29 +180,38 @@ function loadLeaderboard() {
         });
 }
 
-// 4. Sauvegarder le score
+// 4. Sauvegarder le score (MODIFIÉ POUR ANTI-DOUBLON)
 function saveScoreToFirebase(won, attempts) {
-    if (!currentUser || gameMode !== 'daily' || !db) return;
+    if (!currentUser || !db) return; // Suppression de la vérif gameMode pour permettre la sync hors-jeu
 
     const dateKey = getTodayDateKey();
     const userHandle = currentUser.displayName || "Joueur";
-
-    // On utilise set() avec merge:true pour éviter d'écraser s'il y a d'autres infos, 
-    // mais ici on veut surtout s'assurer qu'on n'enregistre qu'une fois par jour.
-    // Idéalement, on vérifie si le doc existe déjà pour ne pas écraser un meilleur score,
-    // mais pour un Wordle, on ne joue qu'une fois par jour.
     
-    db.collection('daily_scores').doc(dateKey).collection('players').doc(currentUser.uid).set({
-        handle: userHandle,
-        attempts: attempts,
-        won: won,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    })
-    .then(() => {
-        console.log("Score envoyé !");
-        loadLeaderboard(); 
-    })
-    .catch((error) => console.error("Erreur envoi score:", error));
+    const userScoreRef = db.collection('daily_scores').doc(dateKey).collection('players').doc(currentUser.uid);
+
+    // VÉRIFICATION : Le document existe-t-il déjà ?
+    userScoreRef.get().then((docSnapshot) => {
+        if (docSnapshot.exists) {
+            console.log("Score déjà existant en base. Pas d'écrasement.");
+            // On peut recharger le leaderboard au cas où
+            loadLeaderboard();
+        } else {
+            // Pas de score, on enregistre
+            userScoreRef.set({
+                handle: userHandle,
+                attempts: attempts,
+                won: won,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                console.log("Score envoyé avec succès !");
+                loadLeaderboard(); 
+            })
+            .catch((error) => console.error("Erreur envoi score:", error));
+        }
+    }).catch((error) => {
+        console.error("Erreur lors de la vérification du score:", error);
+    });
 }
 
 
@@ -897,7 +913,15 @@ function endGame(isVictory, isShiny = false) {
 
     if (gameMode === 'daily') {
         const todayKey = getTodayDateKey();
-        localStorage.setItem('tusmon_daily_' + todayKey, 'completed');
+        
+        // MODIFICATION : Stockage plus détaillé pour la synchro
+        const gameResult = {
+            status: 'completed',
+            won: isVictory,
+            attempts: currentRow + 1
+        };
+        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
+        
         restartBtn.style.display = "none"; 
 
         // --- ENVOI SCORE FIREBASE ---
