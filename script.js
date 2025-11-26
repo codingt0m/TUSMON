@@ -170,6 +170,51 @@ function checkRemoteDailyStatus() {
 // 3. Charger le Leaderboard
 function loadLeaderboard() {
     if (!db) return;
+
+    // --- AJOUT : Date sous le titre ---
+    const leaderboardSection = document.getElementById('leaderboard-section');
+    if (leaderboardSection) {
+        const titleEl = leaderboardSection.querySelector('.menu-title');
+        if (titleEl) {
+            // 1. On s'assure que le titre est bien "Classement du Jour"
+            titleEl.textContent = "Classement du Jour 🏆";
+
+            // 2. Calcul de la date
+            const now = new Date();
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            let dateStr = now.toLocaleDateString('fr-FR', options);
+            
+            // Capitalisation (Lundi 1 Janvier)
+            dateStr = dateStr.split(' ')
+                             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                             .join(' ');
+
+            // 3. Gestion de l'élément sous-titre pour la date
+            let dateEl = document.getElementById('leaderboard-date-subtitle');
+            
+            // Si l'élément n'existe pas encore, on le crée
+            if (!dateEl) {
+                dateEl = document.createElement('div');
+                dateEl.id = 'leaderboard-date-subtitle';
+                
+                // Styles : non gras, centré, couleur légèrement atténuée
+                dateEl.style.fontWeight = 'normal';
+                dateEl.style.fontSize = '0.95rem';
+                dateEl.style.color = '#ddd'; 
+                dateEl.style.textAlign = 'center';
+                dateEl.style.marginTop = '-5px'; // Un peu plus proche du titre
+                dateEl.style.marginBottom = '10px';
+
+                // Insertion juste après le titre dans le DOM
+                titleEl.parentNode.insertBefore(dateEl, titleEl.nextSibling);
+            }
+
+            // Mise à jour du texte
+            dateEl.textContent = dateStr;
+        }
+    }
+    // -----------------------------------------------------------
+
     const dateKey = getTodayDateKey();
     const leaderboardDiv = document.getElementById('leaderboard-container');
     

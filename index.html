@@ -28,6 +28,8 @@
         <!-- SECTION LEADERBOARD (MODIFIÉ : Ajout de l'ID "leaderboard-section") -->
         <div class="menu-section" id="leaderboard-section">
             <div class="menu-title">Classement du Jour 🏆</div>
+            <!-- AJOUT : Date du jour -->
+            <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:10px; margin-top:-5px; font-style: italic;"></div>
             
             <!-- Zone de connexion -->
             <div id="auth-section" style="text-align: center; margin-bottom: 10px;">
@@ -87,7 +89,6 @@
         
         <div id="controls">
             <button id="menu-return-btn" class="action-btn" onclick="showMenu()">Menu</button>
-            
             <button id="giveup-btn" class="action-btn" onclick="giveUp()">Abandonner</button>
             <button id="restart-btn" class="action-btn" onclick="restartCurrentMode()">Rejouer</button>
         </div>
