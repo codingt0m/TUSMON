@@ -136,18 +136,19 @@ h1 .white-text { color: #ffffff; }
 }
 
 /* STYLE POUR LEADERBOARD DÉPORTÉ SUR PC */
-/* Utilisation de position: fixed !important pour forcer le placement par rapport à l'écran */
-@media (min-width: 1000px) {
+/* Utilisation de position: absolute pour l'aligner par rapport au menu parent */
+@media (min-width: 1100px) {
     #leaderboard-section {
-        position: fixed !important;
-        top: 20px;
-        left: 20px;
-        width: 300px; /* Taille fixe pour le côté */
-        margin: 0;
-        z-index: 2000; /* Z-index élevé pour passer au-dessus de tout */
+        position: absolute !important;
+        top: -1px; /* REMONTÉ DE 3 PIXELS */
+        left: auto;
+        right: 100%; /* Se place à gauche du menu */
+        margin-right: 20px; /* Espace entre le menu et le leaderboard */
+        width: 300px;
+        z-index: 100;
         border: 1px solid var(--border);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-        background-color: #1e1e1e; /* Fond opaque nécessaire */
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        background-color: #1e1e1e;
         border-radius: 10px;
     }
 }

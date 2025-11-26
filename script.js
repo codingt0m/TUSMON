@@ -54,7 +54,7 @@ const messageEl = document.getElementById('message');
 const resultImg = document.getElementById('pokemon-result-image'); // Image résultat
 
 const restartBtn = document.getElementById('restart-btn');
-const skipBtn = document.getElementById('skip-btn');
+// Le bouton skipBtn a été retiré du HTML, on retire donc sa référence ici pour éviter les erreurs
 const giveupBtn = document.getElementById('giveup-btn');
 const menuReturnBtn = document.getElementById('menu-return-btn');
 const btnDailyStart = document.getElementById('btn-daily-start');
@@ -173,7 +173,10 @@ function loadLeaderboard() {
     const dateKey = getTodayDateKey();
     const leaderboardDiv = document.getElementById('leaderboard-container');
     
-    // Requête : Trier par "réussite" (les gagnants d'abord), puis par nombre d'essais, puis par date
+    // LOGIQUE DE TRI :
+    // 1. Les gagnants ('won' desc)
+    // 2. Le moins d'essais ('attempts' asc)
+    // 3. Le plus rapide en cas d'égalité ('timestamp' asc)
     db.collection('daily_scores').doc(dateKey).collection('players')
         .orderBy('won', 'desc') 
         .orderBy('attempts', 'asc') 
@@ -204,17 +207,27 @@ function loadLeaderboard() {
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
                 // GESTION PHOTO DE PROFIL
-                // Utilise l'image sauvegardée ou un placeholder gris si pas d'image
                 const imgHtml = data.photoURL 
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
+
+                // GESTION DU LIEN TWITTER
+                let userLink = data.handle || 'Anonyme';
+                if (data.handle && data.handle.startsWith('@')) {
+                    // On enlève le @ pour créer l'URL
+                    const twitterUser = data.handle.substring(1);
+                    userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
+                } else if (data.handle) {
+                     // Cas où le handle n'a pas de @ (rare si bien géré, mais sécurité)
+                     userLink = `<a href="https://twitter.com/${data.handle}" target="_blank" style="color: inherit; text-decoration: none;">${data.handle}</a>`;
+                }
 
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td>
                                 <div class="user-cell">
                                     ${imgHtml}
-                                    <span>${data.handle || 'Anonyme'}</span>
+                                    <span>${userLink}</span>
                                 </div>
                             </td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
@@ -575,6 +588,8 @@ function restartCurrentMode() {
     }
 }
 
+// La fonction skipToClassic n'est plus appelée, mais on peut la laisser ou l'enlever. 
+// Le bouton est supprimé, donc elle n'est plus accessible.
 function skipToClassic() {
     const checkboxes = genFiltersCont.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(cb => cb.checked = true);
@@ -599,7 +614,8 @@ function setupGameUI() {
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
     
-    skipBtn.style.display = (gameMode === 'daily') ? "inline-block" : "none";
+    // SUPPRESSION DE LA LIGNE QUI CAUSAIT L'ERREUR :
+    // skipBtn.style.display = ...  <- CETTE LIGNE EST RETIRÉE
 
     // Reset CSS class
     valGen.classList.remove('revealed');
@@ -997,5 +1013,5 @@ function endGame(isVictory, isShiny = false) {
     }
     
     giveupBtn.style.display = "none"; 
-    skipBtn.style.display = "none"; 
+    // skipBtn.style.display = "none";  // SUPPRIMÉ
 }
