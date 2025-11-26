@@ -156,7 +156,7 @@ function checkRemoteDailyStatus() {
             console.log("Score distant trouvé. Blocage du bouton jouer.");
             if (btnDaily) {
                 btnDaily.disabled = true;
-                btnDaily.textContent = "DÉJÀ JOUÉ (Compte)";
+                btnDaily.textContent = "DÉJÀ JOUÉ"; // Modification ici : texte simplifié
                 // Sécurité supplémentaire : on met à jour le local storage pour éviter le délai au prochain refresh
                 // On utilise un marqueur simple si pas de données locales
                 if (!localStorage.getItem('tusmon_daily_' + todayKey)) {
@@ -190,7 +190,16 @@ function loadLeaderboard() {
             let rank = 1;
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                const scoreDisplay = data.won ? `${data.attempts}/6` : 'X/6';
+                
+                // MODIFICATION : Affichage personnalisé du score
+                let scoreDisplay;
+                if (data.won) {
+                    // Gestion du pluriel pour "essai"
+                    scoreDisplay = `${data.attempts} essai${data.attempts > 1 ? 's' : ''}`;
+                } else {
+                    scoreDisplay = "Perdu";
+                }
+
                 const color = data.won ? '#538d4e' : '#d9534f';
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
