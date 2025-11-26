@@ -203,9 +203,20 @@ function loadLeaderboard() {
                 const color = data.won ? '#538d4e' : '#d9534f';
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
+                // GESTION PHOTO DE PROFIL
+                // Utilise l'image sauvegardée ou un placeholder gris si pas d'image
+                const imgHtml = data.photoURL 
+                    ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
+                    : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
+
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
-                            <td>${data.handle || 'Anonyme'}</td>
+                            <td>
+                                <div class="user-cell">
+                                    ${imgHtml}
+                                    <span>${data.handle || 'Anonyme'}</span>
+                                </div>
+                            </td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
                          </tr>`;
                 rank++;
@@ -219,12 +230,14 @@ function loadLeaderboard() {
         });
 }
 
-// 4. Sauvegarder le score (MODIFIÉ POUR ANTI-DOUBLON)
+// 4. Sauvegarder le score (MODIFIÉ POUR ANTI-DOUBLON ET PHOTO)
 function saveScoreToFirebase(won, attempts) {
     if (!currentUser || !db) return; // Suppression de la vérif gameMode pour permettre la sync hors-jeu
 
     const dateKey = getTodayDateKey();
     const userHandle = currentUser.displayName || "Joueur";
+    // Récupération de l'URL de la photo (si dispo)
+    const userPhoto = currentUser.photoURL || null;
     
     const userScoreRef = db.collection('daily_scores').doc(dateKey).collection('players').doc(currentUser.uid);
 
@@ -240,6 +253,7 @@ function saveScoreToFirebase(won, attempts) {
             // Pas de score, on enregistre
             userScoreRef.set({
                 handle: userHandle,
+                photoURL: userPhoto, // AJOUT DE LA PHOTO
                 attempts: attempts,
                 won: won,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()

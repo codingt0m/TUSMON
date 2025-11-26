@@ -114,6 +114,7 @@ h1 .white-text { color: #ffffff; }
     border-radius: 10px;
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    position: relative; /* Permet un contexte relatif si besoin, mais on va sortir le leaderboard */
 }
 
 .menu-section {
@@ -132,6 +133,20 @@ h1 .white-text { color: #ffffff; }
     margin-bottom: 5px;
     text-align: center;
     color: #ddd;
+}
+
+/* STYLE POUR LEADERBOARD DÉPORTÉ SUR PC */
+@media (min-width: 1000px) {
+    #leaderboard-section {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 300px; /* Taille fixe pour le côté */
+        margin: 0;
+        z-index: 500;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    }
 }
 
 #gen-filters {
@@ -216,6 +231,23 @@ h1 .white-text { color: #ffffff; }
 #leaderboard-container td {
     padding: 6px 4px;
     border-bottom: 1px solid #333;
+    vertical-align: middle; /* Alignement vertical pour l'image */
+}
+
+/* Style pour la photo de profil */
+.profile-pic {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    object-fit: cover;
+}
+
+/* Style pour le nom d'utilisateur avec image */
+.user-cell {
+    display: flex;
+    align-items: center;
 }
 
 #leaderboard-container tr:last-child td {
