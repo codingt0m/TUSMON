@@ -114,7 +114,7 @@ h1 .white-text { color: #ffffff; }
     border-radius: 10px;
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    position: relative; /* Permet un contexte relatif si besoin, mais on va sortir le leaderboard */
+    position: relative; /* Permet un contexte relatif si besoin */
 }
 
 .menu-section {
@@ -136,16 +136,19 @@ h1 .white-text { color: #ffffff; }
 }
 
 /* STYLE POUR LEADERBOARD DÉPORTÉ SUR PC */
+/* Utilisation de position: fixed !important pour forcer le placement par rapport à l'écran */
 @media (min-width: 1000px) {
     #leaderboard-section {
-        position: absolute;
+        position: fixed !important;
         top: 20px;
         left: 20px;
         width: 300px; /* Taille fixe pour le côté */
         margin: 0;
-        z-index: 500;
+        z-index: 2000; /* Z-index élevé pour passer au-dessus de tout */
         border: 1px solid var(--border);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        background-color: #1e1e1e; /* Fond opaque nécessaire */
+        border-radius: 10px;
     }
 }
 
