@@ -54,6 +54,9 @@ const giveupBtn = document.getElementById('giveup-btn');
 const menuReturnBtn = document.getElementById('menu-return-btn');
 const btnDailyStart = document.getElementById('btn-daily-start');
 
+// NOUVEAU : Référence au bouton de partage
+const shareBtn = document.getElementById('share-btn');
+
 const keyboardCont = document.getElementById('keyboard-cont');
 const modeBadge = document.getElementById('mode-badge');
 
@@ -572,6 +575,11 @@ function startDailyGame() {
     activeFilters = []; 
     const dailyIndex = getDailyPokemonIndex(pokemonList.length);
     targetPokemon = pokemonList[dailyIndex];
+    
+    // NOUVEAU : Réinitialiser la grille locale pour la nouvelle partie
+    const todayKey = getTodayDateKey();
+    localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({ status: 'in-progress', grid: [] }));
+
     setupGameUI();
 }
 
@@ -659,6 +667,9 @@ function setupGameUI() {
     resultImg.style.display = "none"; // Cacher l'image de fin
     resultImg.src = "";
     
+    // Masquer le bouton de partage au début de la partie
+    if (shareBtn) shareBtn.style.display = "none";
+
     restartBtn.style.display = "none";
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
@@ -927,9 +938,12 @@ function checkGuess() {
         }
     });
 
+    let rowResult = ""; // Variable pour stocker la ligne d'emojis
+    
     guessArray.forEach((char, i) => {
         if (i >= wordLength) return;
         const tile = rowTiles[i];
+        
         if (tile.dataset.state !== 'correct') {
             const indexInTarget = targetArray.indexOf(char);
             if (indexInTarget > -1) {
@@ -941,7 +955,34 @@ function checkGuess() {
                 if (!foundLetters[char]) foundLetters[char] = 'absent';
             }
         }
+        
+        // LOGIQUE POUR CRÉER LA LIGNE D'EMOJIS
+        switch(tile.dataset.state) {
+            case 'correct':
+                rowResult += '🟥';
+                break;
+            case 'present':
+                rowResult += '🟨';
+                break;
+            default:
+                rowResult += '⬛';
+        }
     });
+
+    // Enregistrement de la ligne d'emojis dans le localStorage si mode daily
+    if (gameMode === 'daily') {
+        const todayKey = getTodayDateKey();
+        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+        // Récupérer les données existantes ou initialiser
+        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [] };
+        
+        // S'assurer que grid est un tableau et l'initialiser
+        if (!Array.isArray(gameResult.grid)) gameResult.grid = [];
+        
+        gameResult.grid[currentRow] = rowResult; // Sauvegarde la ligne actuelle
+        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
+    }
+
 
     rowTiles.forEach((tile, i) => {
         setTimeout(() => {
@@ -1041,18 +1082,37 @@ function endGame(isVictory, isShiny = false) {
     if (gameMode === 'daily') {
         const todayKey = getTodayDateKey();
         
-        // MODIFICATION : Stockage plus détaillé pour la synchro
-        const gameResult = {
-            status: 'completed',
-            won: isVictory,
-            attempts: currentRow + 1
-        };
+        // 1. On récupère la grille complète du localStorage
+        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+        // On récupère les données existantes, ou un objet vide si non trouvé
+        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [] };
+        
+        // 2. MODIFICATION : Ajout des infos finales au stockage local
+        gameResult.status = 'completed';
+        gameResult.won = isVictory;
+        gameResult.attempts = currentRow + 1;
+        
+        // L'ID du Pokémon du jour (pour le tweet)
+        const dailyIndex = getDailyPokemonIndex(pokemonList.length);
+        gameResult.dailyId = pokemonList[dailyIndex].id; // Stocke l'ID du Pokémon
+        
+        // Si le joueur a abandonné/perdu sans remplir toutes les lignes, on ajoute les lignes noires nécessaires
+        if (!isVictory && gameResult.grid.length < maxGuesses) {
+            const emptyLine = '⬛'.repeat(wordLength);
+            while (gameResult.grid.length < maxGuesses) {
+                gameResult.grid.push(emptyLine);
+            }
+        }
+        
         localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
         
         restartBtn.style.display = "none"; 
 
+        // 3. Afficher le bouton de partage et Masquer les boutons classiques
+        if (shareBtn) shareBtn.style.display = "inline-block";
+        giveupBtn.style.display = "none"; 
+        
         // --- ENVOI SCORE FIREBASE ---
-        // Le nombre de coups est (currentRow + 1)
         let attemptsCount = currentRow + 1;
         saveScoreToFirebase(isVictory, attemptsCount);
         // ----------------------------
@@ -1061,6 +1121,58 @@ function endGame(isVictory, isShiny = false) {
         restartBtn.style.display = "inline-block"; 
     }
     
+    // Assure que les boutons de contrôle restants sont gérés
+    if (gameMode !== 'daily' && shareBtn) shareBtn.style.display = "none";
     giveupBtn.style.display = "none"; 
-    // skipBtn.style.display = "none";  // SUPPRIMÉ
+}
+
+
+// --- NOUVELLE FONCTION : Génération de la grille d'emojis ---
+function generateEmojiGrid() {
+    const todayKey = getTodayDateKey();
+    const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+
+    if (!storedData) {
+        return "J'ai joué à TUSMON mais le résultat n'a pas été trouvé...\n\nhttps://tusmo.xyz";
+    }
+
+    try {
+        const result = JSON.parse(storedData);
+        
+        // Score affiché: le nombre de tentatives si gagné, ou 'X' si perdu
+        let scoreDisplay = result.won ? `${result.attempts}/${maxGuesses}` : `X/${maxGuesses}`;
+        
+        // La grille d'emojis est contenue dans result.grid (une liste de chaînes)
+        const emojiGrid = (result.grid && Array.isArray(result.grid)) 
+            ? result.grid.join('\n') 
+            : '';
+            
+        // Le texte du tweet, similaire à la capture d'écran
+        const tweetText = `🇫🇷 TUSMON (@tusmo_xyz) #${result.dailyId} - ${scoreDisplay}\n\n${emojiGrid}\n\ntusmo.xyz`;
+
+        return tweetText;
+
+    } catch (e) {
+        console.error("Erreur de parsing du localStorage pour le partage:", e);
+        return `J'ai joué à TUSMON aujourd'hui !\n\nhttps://tusmo.xyz`;
+    }
+}
+
+
+// --- NOUVELLE FONCTION : Partage Twitter ---
+function shareDailyResult() {
+    // Ne fonctionne que si le bouton de partage est visible (donc, en mode daily terminé)
+    if (gameMode !== 'daily' || isGameOver === false) return; 
+    
+    const tweetText = generateEmojiGrid();
+    
+    // Encodage pour l'URL
+    const encodedText = encodeURIComponent(tweetText);
+    
+    // Construction de l'URL de partage Twitter (utiliser "url" pour le lien du jeu)
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    
+    // Ouverture de la fenêtre popup
+    // Remplacé 'twitter.com' par le lien officiel de l'intent pour plus de sécurité
+    window.open(twitterUrl, 'ShareOnTwitter', 'width=550,height=420,scrollbars=yes,resizable=yes,toolbar=no,location=no,menubar=no');
 }

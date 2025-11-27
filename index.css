@@ -477,6 +477,12 @@ button:disabled {
     opacity: 0.7;
 }
 
+/* AJOUT DU STYLE POUR LE BOUTON DE PARTAGE */
+#share-btn { 
+    background-color: #1DA1F2; /* Bleu Twitter Officiel */ 
+    display: none; /* Caché par défaut */
+}
+
 #restart-btn { background-color: var(--btn-primary); display: none; }
 #skip-btn { background-color: var(--btn-neutral); display: none; }
 #giveup-btn { background-color: var(--btn-danger); display: none; }
