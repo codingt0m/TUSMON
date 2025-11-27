@@ -1,0 +1,9 @@
+# Fichiers de configuration secrets
+config.js
+.env
+
+# Fichiers systèmes
+.DS_Store
+Thumbs.db
+
+ 

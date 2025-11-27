@@ -1,19 +1,14 @@
 // --- CONFIGURATION FIREBASE ---
-// REMPLACE CES VALEURS PAR CELLES DE TON PROJET FIREBASE
-const firebaseConfig = {
-  apiKey: "AIzaSyC1br7adugwF2klTk2CErFSEYkEY9YgmpY",
-  authDomain: "tusmon-34b35.firebaseapp.com",
-  projectId: "tusmon-34b35",
-  storageBucket: "tusmon-34b35.firebasestorage.app",
-  messagingSenderId: "314364969676",
-  appId: "1:314364969676:web:e726b1d25f75a6740ef869"
-};
-
+// La variable firebaseConfig est chargée depuis config.js
 
 // Initialiser Firebase
-// (On suppose que les scripts CDN dans le HTML ont bien chargé l'objet "firebase")
 if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
+    // Vérification de sécurité
+    if (typeof firebaseConfig === 'undefined') {
+        console.error("Erreur : La configuration Firebase (config.js) est manquante !");
+    } else {
+        firebase.initializeApp(firebaseConfig);
+    }
 } else {
     console.error("Firebase SDK non trouvé !");
 }
