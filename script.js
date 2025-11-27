@@ -1134,7 +1134,7 @@ function generateEmojiGrid() {
 
     if (!storedData) {
         // Changement du lien vers celui demandé par l'utilisateur
-        return "J'ai joué à TUSMON mais le résultat n'a pas été trouvé...\n\nhttps://tusmo.vercel.app";
+        return "J'ai joué à TUSMON mais j'ai pas trouvé le Pokémon...\n\nhttps://tusmon.vercel.app";
     }
 
     try {
@@ -1156,13 +1156,13 @@ function generateEmojiGrid() {
             : '';
             
         // Le texte du tweet au nouveau format
-        const tweetText = `${mainMessage}\n\n${emojiGrid}\n\ntusmo.vercel.app`;
+        const tweetText = `${mainMessage}\n\n${emojiGrid}\n\ntusmon.vercel.app`;
 
         return tweetText;
 
     } catch (e) {
         console.error("Erreur de parsing du localStorage pour le partage:", e);
-        return `J'ai joué à TUSMON aujourd'hui !\n\nhttps://tusmo.vercel.app`;
+        return `J'ai joué à TUSMON aujourd'hui !\n\nhttps://tusmon.vercel.app`;
     }
 }
 
@@ -1182,5 +1182,5 @@ function shareDailyResult() {
     
     // Ouverture de la fenêtre popup
     // Remplacé 'twitter.com' par le lien officiel de l'intent pour plus de sécurité
-    window.open(twitterUrl, 'ShareOnTwitter', 'width=550,height=420,scrollbars=yes,resizable=yes,toolbar=no,location=no,menubar=no');
+    window.open(twitterUrl, 'ShareOnTwitter', 'width=550,height=700,scrollbars=yes,resizable=yes,toolbar=no,location=no,menubar=no');
 }
