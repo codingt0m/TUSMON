@@ -1133,28 +1133,36 @@ function generateEmojiGrid() {
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
 
     if (!storedData) {
-        return "J'ai joué à TUSMON mais le résultat n'a pas été trouvé...\n\nhttps://tusmo.xyz";
+        // Changement du lien vers celui demandé par l'utilisateur
+        return "J'ai joué à TUSMON mais le résultat n'a pas été trouvé...\n\nhttps://tusmo.vercel.app";
     }
 
     try {
         const result = JSON.parse(storedData);
         
         // Score affiché: le nombre de tentatives si gagné, ou 'X' si perdu
-        let scoreDisplay = result.won ? `${result.attempts}/${maxGuesses}` : `X/${maxGuesses}`;
+        let scoreDisplay = result.won 
+            ? `${result.attempts} coup${result.attempts > 1 ? 's' : ''}` // Ajout 'coup(s)'
+            : `X coups`;
         
+        // Message principal
+        const mainMessage = result.won
+            ? `TUSMON - J'ai deviné le Pokémon du jour en ${scoreDisplay}`
+            : `TUSMON - J'ai échoué à deviner le Pokémon du jour !`; 
+
         // La grille d'emojis est contenue dans result.grid (une liste de chaînes)
         const emojiGrid = (result.grid && Array.isArray(result.grid)) 
             ? result.grid.join('\n') 
             : '';
             
-        // Le texte du tweet, similaire à la capture d'écran
-        const tweetText = `🇫🇷 TUSMON (@tusmo_xyz) #${result.dailyId} - ${scoreDisplay}\n\n${emojiGrid}\n\ntusmo.xyz`;
+        // Le texte du tweet au nouveau format
+        const tweetText = `${mainMessage}\n\n${emojiGrid}\n\ntusmo.vercel.app`;
 
         return tweetText;
 
     } catch (e) {
         console.error("Erreur de parsing du localStorage pour le partage:", e);
-        return `J'ai joué à TUSMON aujourd'hui !\n\nhttps://tusmo.xyz`;
+        return `J'ai joué à TUSMON aujourd'hui !\n\nhttps://tusmo.vercel.app`;
     }
 }
 
