@@ -1146,9 +1146,19 @@ function generateEmojiGrid() {
             : `X coups`;
         
         // Message principal
-        const mainMessage = result.won
-            ? `TUSMON - J'ai deviné le Pokémon du jour en ${scoreDisplay}`
-            : `TUSMON - J'ai échoué à deviner le Pokémon du jour !`; 
+        let mainMessage;
+        if (result.won) {
+            if (result.attempts === 1) {
+                // Cas spécifique pour le ONE SHOT
+                mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ONE SHOT !`;
+            } else {
+                // Cas pour les autres victoires
+                mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ${scoreDisplay}`;
+            }
+        } else {
+            // Cas de la défaite
+            mainMessage = `TUSMON - J'ai échoué à deviner le Pokémon du jour !`;
+        }
 
         // La grille d'emojis est contenue dans result.grid (une liste de chaînes)
         const emojiGrid = (result.grid && Array.isArray(result.grid)) 
