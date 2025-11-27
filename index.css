@@ -260,7 +260,7 @@ h1 .white-text { color: #ffffff; }
 /* Positionnement de la couronne */
 .crown-emoji {
     position: absolute;
-    top: -10px; /* Ajuster la position verticale */
+    top: -5px; /* Ajuster la position verticale */
     left: 10px; /* Ajuster la position horizontale */
     font-size: 1.2rem;
     z-index: 10; /* Assure que la couronne est au-dessus */
