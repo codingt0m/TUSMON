@@ -265,7 +265,7 @@ h1 .white-text { color: #ffffff; }
     font-size: 1.2rem;
     z-index: 10; /* Assure que la couronne est au-dessus */
     pointer-events: none; /* Ne bloque pas le clic si l'avatar devient cliquable */
-    transform: rotate(15deg); /* Petit angle pour le style */
+    transform: rotate(20deg); /* Petit angle pour le style */
 }
 
 /* Style pour le nom d'utilisateur avec image */
