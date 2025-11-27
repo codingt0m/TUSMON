@@ -250,6 +250,12 @@ function loadLeaderboard() {
                 const imgHtml = data.photoURL 
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
+                
+                // AJOUT COURONNE POUR LE RANG 1
+                let crownHtml = '';
+                if (rank === 1) {
+                    crownHtml = '<span class="crown-emoji">👑</span>';
+                }
 
                 // GESTION DU LIEN TWITTER
                 let userLink = data.handle || 'Anonyme';
@@ -266,7 +272,10 @@ function loadLeaderboard() {
                             <td style="width:20px;">#${rank}</td>
                             <td>
                                 <div class="user-cell">
-                                    ${imgHtml}
+                                    <div class="profile-pic-wrapper">
+                                        ${imgHtml}
+                                        ${crownHtml}
+                                    </div>
                                     <span>${userLink}</span>
                                 </div>
                             </td>

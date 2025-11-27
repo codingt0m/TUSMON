@@ -243,9 +243,29 @@ h1 .white-text { color: #ffffff; }
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    margin-right: 8px;
-    vertical-align: middle;
+    /* margin-right: 8px; -> Déplacé vers .profile-pic-wrapper */
+    /* vertical-align: middle; -> Non nécessaire dans un flex container */
     object-fit: cover;
+}
+
+/* Container pour l'image + couronne */
+.profile-pic-wrapper {
+    position: relative;
+    width: 24px; /* Même taille que .profile-pic */
+    height: 24px;
+    margin-right: 8px; /* On déplace la marge du .profile-pic vers le wrapper */
+    /* On retire vertical-align: middle du .profile-pic qui n'est plus pertinent dans un wrapper flex */
+}
+
+/* Positionnement de la couronne */
+.crown-emoji {
+    position: absolute;
+    top: -10px; /* Ajuster la position verticale */
+    left: 10px; /* Ajuster la position horizontale */
+    font-size: 1.2rem;
+    z-index: 10; /* Assure que la couronne est au-dessus */
+    pointer-events: none; /* Ne bloque pas le clic si l'avatar devient cliquable */
+    transform: rotate(15deg); /* Petit angle pour le style */
 }
 
 /* Style pour le nom d'utilisateur avec image */
