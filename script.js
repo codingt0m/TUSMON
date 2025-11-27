@@ -1150,7 +1150,7 @@ function generateEmojiGrid() {
         if (result.won) {
             if (result.attempts === 1) {
                 // Cas spécifique pour le ONE SHOT
-                mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ONE SHOT !`;
+                mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ONE SHOT ! 🔥✨`; ;
             } else {
                 // Cas pour les autres victoires
                 mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ${scoreDisplay}`;
