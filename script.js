@@ -49,7 +49,6 @@ const messageEl = document.getElementById('message');
 const resultImg = document.getElementById('pokemon-result-image'); // Image résultat
 
 const restartBtn = document.getElementById('restart-btn');
-// Le bouton skipBtn a été retiré du HTML, on retire donc sa référence ici pour éviter les erreurs
 const giveupBtn = document.getElementById('giveup-btn');
 const menuReturnBtn = document.getElementById('menu-return-btn');
 const btnDailyStart = document.getElementById('btn-daily-start');
@@ -82,11 +81,7 @@ function loginWithTwitter() {
     const provider = new firebase.auth.TwitterAuthProvider();
     auth.signInWithPopup(provider)
         .then((result) => {
-            // Tentative de récupération du handle (username sans @)
             const twitterHandle = result.additionalUserInfo?.username;
-            
-            // Si on a le handle, on met à jour le profil (pour l'avoir dans currentUser.displayName)
-            // Sinon Firebase utilise le nom complet par défaut
             if(twitterHandle) {
                  result.user.updateProfile({ displayName: '@' + twitterHandle }).then(() => {
                      updateAuthUI(result.user);
@@ -113,26 +108,21 @@ function updateAuthUI(user) {
         txtInfo.style.display = 'block';
         txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
         
-        // MODIFICATION : Vérification du score local en attente de synchronisation
         const todayKey = getTodayDateKey();
         const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
         
         if (storedData) {
             try {
-                // On vérifie si c'est le nouveau format JSON
-                // (Si l'utilisateur a joué avant de se connecter)
                 const result = JSON.parse(storedData);
                 if (result && result.status === 'completed') {
                     console.log("Score local trouvé. Synchronisation...");
                     saveScoreToFirebase(result.won, result.attempts);
                 }
             } catch (e) {
-                // Ignore les anciens formats non-JSON
+                // Ignore les anciens formats
             }
         }
 
-        // NOUVEAU : On vérifie immédiatement sur le serveur si le joueur a déjà joué aujourd'hui
-        // (Empêche de rejouer en changeant de navigateur)
         checkRemoteDailyStatus();
 
     } else {
@@ -154,9 +144,7 @@ function checkRemoteDailyStatus() {
             console.log("Score distant trouvé. Blocage du bouton jouer.");
             if (btnDaily) {
                 btnDaily.disabled = true;
-                btnDaily.textContent = "DÉJÀ JOUÉ"; // Modification ici : texte simplifié
-                // Sécurité supplémentaire : on met à jour le local storage pour éviter le délai au prochain refresh
-                // On utilise un marqueur simple si pas de données locales
+                btnDaily.textContent = "DÉJÀ JOUÉ"; 
                 if (!localStorage.getItem('tusmon_daily_' + todayKey)) {
                      localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({status: 'completed', remote: true}));
                 }
@@ -169,57 +157,40 @@ function checkRemoteDailyStatus() {
 function loadLeaderboard() {
     if (!db) return;
 
-    // --- AJOUT : Date sous le titre ---
     const leaderboardSection = document.getElementById('leaderboard-section');
     if (leaderboardSection) {
         const titleEl = leaderboardSection.querySelector('.menu-title');
         if (titleEl) {
-            // 1. On s'assure que le titre est bien "Classement du Jour"
             titleEl.textContent = "Classement du Jour 🏆";
 
-            // 2. Calcul de la date
             const now = new Date();
             const options = { weekday: 'long', day: 'numeric', month: 'long' };
             let dateStr = now.toLocaleDateString('fr-FR', options);
             
-            // Capitalisation (Lundi 1 Janvier)
             dateStr = dateStr.split(' ')
                              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                              .join(' ');
 
-            // 3. Gestion de l'élément sous-titre pour la date
             let dateEl = document.getElementById('leaderboard-date-subtitle');
             
-            // Si l'élément n'existe pas encore, on le crée
             if (!dateEl) {
                 dateEl = document.createElement('div');
                 dateEl.id = 'leaderboard-date-subtitle';
-                
-                // Styles : non gras, centré, couleur légèrement atténuée
                 dateEl.style.fontWeight = 'normal';
                 dateEl.style.fontSize = '0.95rem';
                 dateEl.style.color = '#ddd'; 
                 dateEl.style.textAlign = 'center';
-                dateEl.style.marginTop = '-5px'; // Un peu plus proche du titre
+                dateEl.style.marginTop = '-5px'; 
                 dateEl.style.marginBottom = '10px';
-
-                // Insertion juste après le titre dans le DOM
                 titleEl.parentNode.insertBefore(dateEl, titleEl.nextSibling);
             }
-
-            // Mise à jour du texte
             dateEl.textContent = dateStr;
         }
     }
-    // -----------------------------------------------------------
 
     const dateKey = getTodayDateKey();
     const leaderboardDiv = document.getElementById('leaderboard-container');
     
-    // LOGIQUE DE TRI :
-    // 1. Les gagnants ('won' desc)
-    // 2. Le moins d'essais ('attempts' asc)
-    // 3. Le plus rapide en cas d'égalité ('timestamp' asc)
     db.collection('daily_scores').doc(dateKey).collection('players')
         .orderBy('won', 'desc') 
         .orderBy('attempts', 'asc') 
@@ -237,10 +208,8 @@ function loadLeaderboard() {
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 
-                // MODIFICATION : Affichage personnalisé du score
                 let scoreDisplay;
                 if (data.won) {
-                    // Gestion du pluriel pour "essai"
                     scoreDisplay = `${data.attempts} essai${data.attempts > 1 ? 's' : ''}`;
                 } else {
                     scoreDisplay = "Perdu";
@@ -249,25 +218,20 @@ function loadLeaderboard() {
                 const color = data.won ? '#538d4e' : '#d9534f';
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
-                // GESTION PHOTO DE PROFIL
                 const imgHtml = data.photoURL 
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
                 
-                // AJOUT COURONNE POUR LE RANG 1
                 let crownHtml = '';
                 if (rank === 1) {
                     crownHtml = '<span class="crown-emoji">👑</span>';
                 }
 
-                // GESTION DU LIEN TWITTER
                 let userLink = data.handle || 'Anonyme';
                 if (data.handle && data.handle.startsWith('@')) {
-                    // On enlève le @ pour créer l'URL
                     const twitterUser = data.handle.substring(1);
                     userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
                 } else if (data.handle) {
-                     // Cas où le handle n'a pas de @ (rare si bien géré, mais sécurité)
                      userLink = `<a href="https://twitter.com/${data.handle}" target="_blank" style="color: inherit; text-decoration: none;">${data.handle}</a>`;
                 }
 
@@ -295,30 +259,24 @@ function loadLeaderboard() {
         });
 }
 
-// 4. Sauvegarder le score (MODIFIÉ POUR ANTI-DOUBLON ET PHOTO)
 function saveScoreToFirebase(won, attempts) {
-    if (!currentUser || !db) return; // Suppression de la vérif gameMode pour permettre la sync hors-jeu
+    if (!currentUser || !db) return;
 
     const dateKey = getTodayDateKey();
     const userHandle = currentUser.displayName || "Joueur";
-    // Récupération de l'URL de la photo (si dispo)
     const userPhoto = currentUser.photoURL || null;
     
     const userScoreRef = db.collection('daily_scores').doc(dateKey).collection('players').doc(currentUser.uid);
 
-    // VÉRIFICATION : Le document existe-t-il déjà ?
     userScoreRef.get().then((docSnapshot) => {
         if (docSnapshot.exists) {
             console.log("Score déjà existant en base. Pas d'écrasement.");
-            // On peut recharger le leaderboard au cas où
             loadLeaderboard();
-            // On s'assure que le bouton est bien bloqué
             checkRemoteDailyStatus();
         } else {
-            // Pas de score, on enregistre
             userScoreRef.set({
                 handle: userHandle,
-                photoURL: userPhoto, // AJOUT DE LA PHOTO
+                photoURL: userPhoto,
                 attempts: attempts,
                 won: won,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -326,7 +284,7 @@ function saveScoreToFirebase(won, attempts) {
             .then(() => {
                 console.log("Score envoyé avec succès !");
                 loadLeaderboard(); 
-                checkRemoteDailyStatus(); // Bloquer le bouton après envoi
+                checkRemoteDailyStatus();
             })
             .catch((error) => console.error("Erreur envoi score:", error));
         }
@@ -340,7 +298,6 @@ function saveScoreToFirebase(won, attempts) {
 window.addEventListener('DOMContentLoaded', () => {
     initKeyboard();
 
-    // Écouteur Auth Firebase
     if (auth) {
         auth.onAuthStateChanged((user) => {
             updateAuthUI(user);
@@ -348,7 +305,6 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Écouteur Bouton Twitter
     const btnLogin = document.getElementById('btn-twitter-login');
     if (btnLogin) {
         btnLogin.addEventListener('click', loginWithTwitter);
@@ -383,12 +339,11 @@ function parseCSV(csvText) {
                 let type = parts[2] ? parts[2].trim() : "?";
                 let gen = parts[3] ? parts[3].trim() : "?";
                 let stage = parts[4] ? parts[4].trim() : "?";
-                // On récupère l'ID en colonne 0
                 let id = parts[0] ? parts[0].trim() : "0"; 
 
                 if (normalized.length >= 3) {
                     pokemonList.push({ 
-                        id: id, // Stockage de l'ID
+                        id: id,
                         original: name, 
                         normalized: normalized,
                         gen: gen,
@@ -421,53 +376,82 @@ function initMenu() {
     showMenu();
 }
 
-// --- FONCTION "TOUT COCHER" ---
 function selectAllGens() {
     const checkboxes = genFiltersCont.querySelectorAll('input[type="checkbox"]');
     const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-    // Si tout est coché, on décoche tout. Sinon on coche tout.
     checkboxes.forEach(cb => cb.checked = !allChecked);
 }
 
-// --- GESTION DU LOGO ET EASTER EGG ---
 function handleLogoClick() {
-    // Si on est sur le menu, on compte les clics pour l'Easter Egg
     if (menuScreen.style.display !== 'none') {
         logoClickCount++;
         if (logoClickCount > 3) {
             triggerPokeballRain();
-            logoClickCount = 0; // Reset
+            logoClickCount = 0;
         }
     } else {
-        // Si on est en jeu, on retourne au menu
         showMenu();
     }
 }
 
 function showMenu() {
+    // --- NOUVEAU : Sauvegarde de l'état de la partie en cours avant de quitter ---
+    if (gameMode === 'daily' && !isGameOver && targetPokemon) {
+        const todayKey = getTodayDateKey();
+        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+        
+        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [], guesses: [] };
+        
+        // Sauvegarde des variables de jeu
+        gameResult.currentRow = currentRow;
+        gameResult.currentGuess = currentGuess; // Le mot en cours de frappe
+        gameResult.targetId = targetPokemon.id;
+        
+        if (gameResult.status !== 'completed') {
+            gameResult.status = 'in-progress'; 
+        }
+
+        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
+    }
+    // --------------------------------------------------------------------------
+
     gameArea.style.display = 'none';
     menuScreen.style.display = 'flex';
     isGameOver = true; 
-    logoClickCount = 0; // Reset compteur au retour menu
+    logoClickCount = 0; 
     
-    // Au retour au menu, on recharge le leaderboard pour être sûr qu'il est à jour
     if (gameMode === 'daily') {
         loadLeaderboard();
     }
 
     const todayKey = getTodayDateKey();
-    const hasPlayedDaily = localStorage.getItem('tusmon_daily_' + todayKey);
+    const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
     
-    // 1. Check local (rapide)
+    let hasPlayedDaily = false;
+    let isInProgress = false; // Flag pour reprise
+    
+    if (storedData) {
+        try {
+            const result = JSON.parse(storedData);
+            if (result && result.status === 'completed') {
+                hasPlayedDaily = true;
+            } else if (result && result.status === 'in-progress') {
+                isInProgress = true;
+            }
+        } catch (e) {}
+    }
+
     if (hasPlayedDaily) {
         btnDailyStart.disabled = true;
         btnDailyStart.textContent = "DÉJÀ JOUÉ AUJOURD'HUI";
+    } else if (isInProgress) { // Cas "Reprendre"
+        btnDailyStart.disabled = false;
+        btnDailyStart.textContent = "REPRENDRE LA PARTIE";
     } else {
         btnDailyStart.disabled = false;
         btnDailyStart.textContent = "JOUER AU POKÉMON DU JOUR";
     }
 
-    // 2. Check distant (sécurité si connecté)
     if (currentUser) {
         checkRemoteDailyStatus();
     }
@@ -483,7 +467,7 @@ function getTodayDateKey() {
     return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
-// --- ANIMATION PLUIE (FLAMMES / ETOILES / POKEBALLS) ---
+// --- ANIMATION PLUIE ---
 function triggerFallingItems(content, isImage = false, originElement = null, count = 50) {
     let rect = null;
     if (originElement) {
@@ -505,19 +489,16 @@ function triggerFallingItems(content, isImage = false, originElement = null, cou
         }
         
         if (rect) {
-            // Spawn from origin element (center X + variance)
             const randomX = (Math.random() - 0.5) * rect.width; 
             element.style.left = (rect.left + rect.width / 2 + randomX) + 'px';
             element.style.top = (rect.top + rect.height / 2) + 'px';
             
-            // Add horizontal drift
-            const randomDrift = (Math.random() - 0.5) * 300; // +/- 150px drift
+            const randomDrift = (Math.random() - 0.5) * 300; 
             element.style.setProperty('--fall-x', randomDrift + 'px');
         } else {
-            // Full screen rain
             element.style.left = Math.random() * 100 + 'vw';
             element.style.top = '-50px';
-            element.style.setProperty('--fall-x', '0px'); // Fall straight or minimal drift
+            element.style.setProperty('--fall-x', '0px'); 
         }
 
         element.style.animationDuration = (Math.random() * 2 + 2) + 's';
@@ -532,12 +513,11 @@ function triggerFallingItems(content, isImage = false, originElement = null, cou
 }
 
 function triggerEmojiRain(emojiChar) {
-    triggerFallingItems(emojiChar, false, null); // Full screen
+    triggerFallingItems(emojiChar, false, null); 
 }
 
 function triggerPokeballRain() {
     const logo = document.querySelector('h1');
-    // Environ 17 pokéballs (50 / 3)
     triggerFallingItems('https://upload.wikimedia.org/wikipedia/commons/5/51/Pokebola-pokeball-png-0.png', true, logo, 17);
 }
 
@@ -551,7 +531,7 @@ function showGenPopup() {
         
         const rect = hintGen.getBoundingClientRect();
         
-        let leftPos = rect.left + (rect.width / 2) - 225; // 225 = moitié de max-width 450
+        let leftPos = rect.left + (rect.width / 2) - 225; 
         if (leftPos < 10) leftPos = 10; 
         
         let topPos = rect.top - 380; 
@@ -576,11 +556,37 @@ function startDailyGame() {
     const dailyIndex = getDailyPokemonIndex(pokemonList.length);
     targetPokemon = pokemonList[dailyIndex];
     
-    // NOUVEAU : Réinitialiser la grille locale pour la nouvelle partie
     const todayKey = getTodayDateKey();
-    localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({ status: 'in-progress', grid: [] }));
+    const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+    let gameData = null;
+    let isResuming = false;
+    
+    // Tenter de charger les données et vérifier l'état
+    if (storedData) {
+        try {
+            gameData = JSON.parse(storedData);
+            
+            // Vérifier si la partie est en cours ET si c'est bien le même Pokémon du jour
+            if (gameData.status === 'in-progress' && gameData.targetId === targetPokemon.id) {
+                isResuming = true;
+                console.log("Reprise de la partie quotidienne...");
+            }
+        } catch (e) {
+            console.error("Erreur de parsing des données locales:", e);
+        }
+    }
 
-    setupGameUI();
+    if (!isResuming) {
+        // NOUVELLE PARTIE : Réinitialiser la grille locale
+        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({ 
+            status: 'in-progress', 
+            grid: [],
+            guesses: [],
+            targetId: targetPokemon.id
+        }));
+    }
+
+    setupGameUI(isResuming, gameData);
 }
 
 function startRandomGame() {
@@ -606,7 +612,6 @@ function startRandomGame() {
 }
 
 function pickRandomPokemon() {
-    // Sécurité : si le pool est très petit (1 seul pokemon), on ne peut pas éviter la répétition sans bloquer
     if (gamePool.length <= 1) {
         targetPokemon = gamePool[0];
         return;
@@ -615,14 +620,13 @@ function pickRandomPokemon() {
     let randomIndex;
     let newPokemon;
 
-    // On boucle tant qu'on tombe sur le même ID que la dernière fois
     do {
         randomIndex = Math.floor(Math.random() * gamePool.length);
         newPokemon = gamePool[randomIndex];
     } while (newPokemon.id === lastPlayedId);
     
     targetPokemon = newPokemon;
-    lastPlayedId = targetPokemon.id; // Mémorisation pour la prochaine fois
+    lastPlayedId = targetPokemon.id;
 }
 
 function getDailyPokemonIndex(listLength) {
@@ -645,42 +649,33 @@ function restartCurrentMode() {
     }
 }
 
-// La fonction skipToClassic n'est plus appelée, mais on peut la laisser ou l'enlever. 
-// Le bouton est supprimé, donc elle n'est plus accessible.
 function skipToClassic() {
     const checkboxes = genFiltersCont.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(cb => cb.checked = true);
     startRandomGame();
 }
 
-function setupGameUI() {
+// --- CONFIGURATION UI ---
+function setupGameUI(isResuming = false, gameData = {}) {
     menuScreen.style.display = 'none';
     gameArea.style.display = 'flex';
     
-    // Assurer que le clavier est visible au début
     keyboardCont.style.display = 'flex';
 
-    currentRow = 0;
     isGameOver = false;
     isProcessing = false;
     messageEl.textContent = "";
-    resultImg.style.display = "none"; // Cacher l'image de fin
+    resultImg.style.display = "none"; 
     resultImg.src = "";
     
-    // Masquer le bouton de partage au début de la partie
     if (shareBtn) shareBtn.style.display = "none";
 
     restartBtn.style.display = "none";
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
     
-    // SUPPRESSION DE LA LIGNE QUI CAUSAIT L'ERREUR :
-    // skipBtn.style.display = ...  <- CETTE LIGNE EST RETIRÉE
-
-    // Reset CSS class
     valGen.classList.remove('revealed');
 
-    // Reset hint visibility
     hintStage.classList.remove('visible');
     hintType.classList.remove('visible');
     
@@ -691,6 +686,9 @@ function setupGameUI() {
         lblGen.textContent = "GÉN:";
         valGen.textContent = ""; 
         valGen.style.textTransform = ""; 
+        
+        // MODIF CORRECTION : Toujours masquer l'indice de génération au départ en mode daily.
+        // C'est updateHints() qui s'occupera de l'afficher si currentRow >= 4.
         hintGen.classList.remove('visible'); 
     } else {
         modeBadge.textContent = "MODE ALÉATOIRE";
@@ -729,7 +727,14 @@ function setupGameUI() {
         if (targetWord[i] === '.') knownLetters[i] = '.';
     }
 
-    currentGuess = targetWord[0];
+    // Initialisation ou reprise
+    if (isResuming) {
+        currentRow = gameData.currentRow || 0;
+        currentGuess = gameData.currentGuess || targetWord[0];
+    } else {
+        currentRow = 0;
+        currentGuess = targetWord[0];
+    }
     fixedLength = 1; 
 
     board.innerHTML = "";
@@ -741,8 +746,83 @@ function setupGameUI() {
         board.appendChild(tile);
     }
 
+    // --- RESTAURATION DE LA GRILLE ---
+    if (isResuming && gameData.guesses && gameData.grid) { 
+        restoreGameSession(gameData.guesses, gameData.grid); 
+    } 
+
     updateGrid();
     updateHints();
+}
+
+// --- NOUVEAU : Fonction de restauration de session CORRIGÉE (Emoji Fix) ---
+function restoreGameSession(guesses, grid) {
+    let globalKeyUpdates = {};
+    
+    // On boucle sur toutes les lignes complétées (jusqu'à currentRow - 1)
+    for (let r = 0; r < currentRow; r++) {
+        const guess = guesses[r];
+        const resultString = grid[r];
+        const startIdx = r * wordLength;
+
+        if (!guess || !resultString) continue; 
+        
+        // IMPORTANT: Conversion de la chaîne d'emojis en tableau pour gérer les paires de substitution
+        const emojiArray = [...resultString]; 
+
+        if (guess.length !== wordLength) continue; 
+
+        // 1. Remplir les tuiles
+        for (let c = 0; c < wordLength; c++) {
+            const tile = document.getElementById('tile-' + (startIdx + c));
+            const char = guess[c];
+            // Utilisation du tableau d'emojis pour l'index correct
+            const stateChar = emojiArray[c];
+            
+            tile.textContent = char;
+            tile.classList.add('flip'); 
+            
+            let stateClass = 'absent';
+            let keyboardState = 'absent';
+            
+            switch (stateChar) {
+                case '🟥': 
+                    stateClass = 'correct'; 
+                    keyboardState = 'correct';
+                    // Met à jour knownLetters pour les lettres correctement placées (vert)
+                    if (char) knownLetters[c] = char; 
+                    break;
+                case '🟨': 
+                    stateClass = 'present'; 
+                    keyboardState = 'present';
+                    break;
+                case '⬛':
+                default: 
+                    stateClass = 'absent'; 
+                    keyboardState = 'absent';
+            }
+            
+            tile.classList.add(stateClass);
+            
+            // 2. Préparer la mise à jour globale du clavier
+            if (char) {
+                const charUpper = char.toUpperCase();
+                if (globalKeyUpdates[charUpper] === 'correct') {
+                    // R conserve l'état 'correct'
+                } else if (keyboardState === 'correct') {
+                    globalKeyUpdates[charUpper] = 'correct';
+                } else if (globalKeyUpdates[charUpper] === 'present' && keyboardState === 'absent') {
+                    // R conserve l'état 'present'
+                } else if (keyboardState === 'present') {
+                    globalKeyUpdates[charUpper] = 'present';
+                } else if (!globalKeyUpdates[charUpper]) {
+                    globalKeyUpdates[charUpper] = 'absent';
+                }
+            }
+        }
+    }
+    
+    updateKeyboardColors(globalKeyUpdates);
 }
 
 // --- KEYBOARD ---
@@ -762,7 +842,7 @@ function initKeyboard() {
     
     const backBtn = document.createElement('button');
     backBtn.textContent = "⌫";
-    backBtn.className = "keyboard-button wide btn-back"; // Ajout de la classe CSS
+    backBtn.className = "keyboard-button wide btn-back"; 
     backBtn.onclick = deleteLetter;
     row3.appendChild(backBtn);
 
@@ -780,7 +860,7 @@ function initKeyboard() {
 
     const enterBtn = document.createElement('button');
     enterBtn.textContent = "ENTRÉE";
-    enterBtn.className = "keyboard-button wide btn-enter"; // Ajout de la classe CSS
+    enterBtn.className = "keyboard-button wide btn-enter"; 
     enterBtn.onclick = checkGuess;
     row3.appendChild(enterBtn);
 
@@ -813,7 +893,6 @@ function addLetter(letter) {
     if (isGameOver || isProcessing) return;
     
     if (currentGuess.length < wordLength) {
-        // On permet TOUT (même écraser les tirets)
         currentGuess += letter;
         updateGrid();
     }
@@ -842,7 +921,6 @@ function updateGrid() {
             }
         } 
         else {
-            // Affichage de l'indice en fond (si pas encore tapé)
             if (knownLetters[i]) {
                 char = knownLetters[i];
                 className += " correct"; 
@@ -938,7 +1016,7 @@ function checkGuess() {
         }
     });
 
-    let rowResult = ""; // Variable pour stocker la ligne d'emojis
+    let rowResult = ""; 
     
     guessArray.forEach((char, i) => {
         if (i >= wordLength) return;
@@ -956,7 +1034,6 @@ function checkGuess() {
             }
         }
         
-        // LOGIQUE POUR CRÉER LA LIGNE D'EMOJIS
         switch(tile.dataset.state) {
             case 'correct':
                 rowResult += '🟥';
@@ -969,20 +1046,26 @@ function checkGuess() {
         }
     });
 
-    // Enregistrement de la ligne d'emojis dans le localStorage si mode daily
+    // Enregistrement de la ligne d'emojis ET du mot deviné
     if (gameMode === 'daily') {
         const todayKey = getTodayDateKey();
         const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
-        // Récupérer les données existantes ou initialiser
-        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [] };
         
-        // S'assurer que grid est un tableau et l'initialiser
+        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [], guesses: [] };
+        
         if (!Array.isArray(gameResult.grid)) gameResult.grid = [];
+        if (!Array.isArray(gameResult.guesses)) gameResult.guesses = [];
         
-        gameResult.grid[currentRow] = rowResult; // Sauvegarde la ligne actuelle
+        gameResult.grid[currentRow] = rowResult; 
+        gameResult.guesses[currentRow] = currentGuess; // Sauvegarde le mot joué
+        
+        // --- CORRECTIF : Sauvegarde de l'avancement pour le refresh ---
+        gameResult.currentRow = currentRow + 1; // On passe à la ligne suivante dans la sauvegarde
+        gameResult.currentGuess = targetWord.length > 0 ? targetWord[0] : ""; // Reset du mot en cours pour la nouvelle ligne
+        // --------------------------------------------------------------
+        
         localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
     }
-
 
     rowTiles.forEach((tile, i) => {
         setTimeout(() => {
@@ -998,7 +1081,7 @@ function checkGuess() {
     setTimeout(() => {
         if (currentGuess === targetWord) {
             let winMsg = targetPokemon.original + " ! Bravo !";
-            let isShiny = false; // Flag pour shiny
+            let isShiny = false; 
             if (currentRow === 0) {
                 winMsg = "🔥 ONE SHOT ! (" + targetPokemon.original + ") 🔥";
                 isShiny = true;
@@ -1012,7 +1095,6 @@ function checkGuess() {
         } else {
             currentRow++;
             currentGuess = targetWord[0];
-            // Pas de remplissage automatique
             updateGrid();
             updateHints();
             isProcessing = false;
@@ -1060,19 +1142,16 @@ function giveUp() {
 function endGame(isVictory, isShiny = false) {
     isGameOver = true;
     
-    // Masquer le clavier
     keyboardCont.style.display = 'none';
     
-    // Affiche l'image du Pokémon (Shiny si One Shot, sinon Regular)
     if (targetPokemon && targetPokemon.id) {
         const type = isShiny ? 'shiny' : 'regular';
         resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
         
-        // Ajout du gestionnaire d'erreur (fallback)
         resultImg.onerror = function() {
             if (this.src.includes('shiny')) {
                 this.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/regular.png`;
-                this.onerror = null; // Évite une boucle infinie si regular échoue aussi
+                this.onerror = null; 
             }
         };
         
@@ -1082,21 +1161,16 @@ function endGame(isVictory, isShiny = false) {
     if (gameMode === 'daily') {
         const todayKey = getTodayDateKey();
         
-        // 1. On récupère la grille complète du localStorage
         const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
-        // On récupère les données existantes, ou un objet vide si non trouvé
         let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [] };
         
-        // 2. MODIFICATION : Ajout des infos finales au stockage local
         gameResult.status = 'completed';
         gameResult.won = isVictory;
         gameResult.attempts = currentRow + 1;
         
-        // L'ID du Pokémon du jour (pour le tweet)
         const dailyIndex = getDailyPokemonIndex(pokemonList.length);
-        gameResult.dailyId = pokemonList[dailyIndex].id; // Stocke l'ID du Pokémon
+        gameResult.dailyId = pokemonList[dailyIndex].id; 
         
-        // Si le joueur a abandonné/perdu sans remplir toutes les lignes, on ajoute les lignes noires nécessaires
         if (!isVictory && gameResult.grid.length < maxGuesses) {
             const emptyLine = '⬛'.repeat(wordLength);
             while (gameResult.grid.length < maxGuesses) {
@@ -1108,64 +1182,50 @@ function endGame(isVictory, isShiny = false) {
         
         restartBtn.style.display = "none"; 
 
-        // 3. Afficher le bouton de partage et Masquer les boutons classiques
         if (shareBtn) shareBtn.style.display = "inline-block";
         giveupBtn.style.display = "none"; 
         
-        // --- ENVOI SCORE FIREBASE ---
         let attemptsCount = currentRow + 1;
         saveScoreToFirebase(isVictory, attemptsCount);
-        // ----------------------------
         
     } else {
         restartBtn.style.display = "inline-block"; 
     }
     
-    // Assure que les boutons de contrôle restants sont gérés
     if (gameMode !== 'daily' && shareBtn) shareBtn.style.display = "none";
     giveupBtn.style.display = "none"; 
 }
 
-
-// --- NOUVELLE FONCTION : Génération de la grille d'emojis ---
 function generateEmojiGrid() {
     const todayKey = getTodayDateKey();
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
 
     if (!storedData) {
-        // Changement du lien vers celui demandé par l'utilisateur
         return "J'ai joué à TUSMON mais j'ai pas trouvé le Pokémon...\n\nhttps://tusmon.vercel.app";
     }
 
     try {
         const result = JSON.parse(storedData);
         
-        // Score affiché: le nombre de tentatives si gagné, ou 'X' si perdu
         let scoreDisplay = result.won 
-            ? `${result.attempts} coup${result.attempts > 1 ? 's' : ''}` // Ajout 'coup(s)'
+            ? `${result.attempts} coup${result.attempts > 1 ? 's' : ''}`
             : `X coups`;
         
-        // Message principal
         let mainMessage;
         if (result.won) {
             if (result.attempts === 1) {
-                // Cas spécifique pour le ONE SHOT
                 mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ONE SHOT ! 🔥✨`; ;
             } else {
-                // Cas pour les autres victoires
                 mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ${scoreDisplay}`;
             }
         } else {
-            // Cas de la défaite
             mainMessage = `TUSMON - J'ai échoué à deviner le Pokémon du jour !`;
         }
 
-        // La grille d'emojis est contenue dans result.grid (une liste de chaînes)
         const emojiGrid = (result.grid && Array.isArray(result.grid)) 
             ? result.grid.join('\n') 
             : '';
             
-        // Le texte du tweet au nouveau format
         const tweetText = `${mainMessage}\n\n${emojiGrid}\n\ntusmon.vercel.app`;
 
         return tweetText;
@@ -1177,20 +1237,12 @@ function generateEmojiGrid() {
 }
 
 
-// --- NOUVELLE FONCTION : Partage Twitter ---
 function shareDailyResult() {
-    // Ne fonctionne que si le bouton de partage est visible (donc, en mode daily terminé)
     if (gameMode !== 'daily' || isGameOver === false) return; 
     
     const tweetText = generateEmojiGrid();
-    
-    // Encodage pour l'URL
     const encodedText = encodeURIComponent(tweetText);
-    
-    // Construction de l'URL de partage Twitter (utiliser "url" pour le lien du jeu)
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
     
-    // Ouverture de la fenêtre popup
-    // Remplacé 'twitter.com' par le lien officiel de l'intent pour plus de sécurité
     window.open(twitterUrl, 'ShareOnTwitter', 'width=550,height=700,scrollbars=yes,resizable=yes,toolbar=no,location=no,menubar=no');
 }
