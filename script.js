@@ -718,7 +718,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
 
     targetWord = targetPokemon.normalized;
     wordLength = targetWord.length;
-    console.log("Solution :", targetWord); 
+    
 
     knownLetters = new Array(wordLength).fill(null);
     knownLetters[0] = targetWord[0]; 
