@@ -51,11 +51,9 @@ h1 .white-text { color: #ffffff; }
     z-index: 9999;
     user-select: none;
     pointer-events: none;
-    /* Utilisation d'une variable CSS pour le décalage X aléatoire */
     animation: fall linear forwards;
 }
 
-/* Classe spécifique pour l'image de pokéball */
 .falling-pokeball {
     width: 40px;
     height: 40px;
@@ -65,7 +63,6 @@ h1 .white-text { color: #ffffff; }
 
 @keyframes fall {
     to {
-        /* Ajout de var(--fall-x) pour la dispersion horizontale */
         transform: translate(var(--fall-x, 0px), 110vh) rotate(360deg);
     }
 }
@@ -97,13 +94,13 @@ h1 .white-text { color: #ffffff; }
     height: 150px;
     margin: 10px auto;
     object-fit: contain;
-    display: none; /* Caché par défaut */
+    display: none; 
     animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* --- MENU D'ACCUEIL --- */
-#menu-screen {
-    display: none;
+/* --- STYLE COMMUN CARTE MENU (Utilisé pour Menu & Admin) --- */
+.menu-card {
+    display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
@@ -114,7 +111,14 @@ h1 .white-text { color: #ffffff; }
     border-radius: 10px;
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    position: relative; /* Permet un contexte relatif si besoin */
+    position: relative;
+    box-sizing: border-box; /* Important pour le padding */
+}
+
+/* --- MENU D'ACCUEIL (Spécifique) --- */
+#menu-screen {
+    display: none; /* Géré par JS (flex/none) */
+    /* Les styles visuels sont maintenant dans .menu-card via HTML */
 }
 
 .menu-section {
@@ -125,6 +129,7 @@ h1 .white-text { color: #ffffff; }
     padding: 15px;
     background-color: #2a2a2a;
     border-radius: 8px;
+    box-sizing: border-box;
 }
 
 .menu-title {
@@ -135,15 +140,14 @@ h1 .white-text { color: #ffffff; }
     color: #ddd;
 }
 
-/* STYLE POUR LEADERBOARD DÉPORTÉ SUR PC */
-/* Utilisation de position: absolute pour l'aligner par rapport au menu parent */
+/* LEADERBOARD DÉPORTÉ PC */
 @media (min-width: 1100px) {
     #leaderboard-section {
         position: absolute !important;
-        top: -1px; /* REMONTÉ DE 3 PIXELS */
+        top: -1px; 
         left: auto;
-        right: 100%; /* Se place à gauche du menu */
-        margin-right: 20px; /* Espace entre le menu et le leaderboard */
+        right: 100%; 
+        margin-right: 20px; 
         width: 300px;
         z-index: 100;
         border: 1px solid var(--border);
@@ -189,21 +193,19 @@ h1 .white-text { color: #ffffff; }
 }
 .mini-btn:hover { background-color: #555; }
 
-/* --- LEADERBOARD & AUTH (Nouveaux Styles) --- */
+/* --- LEADERBOARD & AUTH --- */
 #auth-section {
     text-align: center;
     margin-bottom: 10px;
 }
 
 #btn-twitter-login {
-    background-color: #1DA1F2; /* Bleu Twitter Officiel */
+    background-color: #1DA1F2;
     color: white;
     margin-top: 5px;
     width: 100%;
 }
-#btn-twitter-login:hover {
-    background-color: #0c85d0;
-}
+#btn-twitter-login:hover { background-color: #0c85d0; }
 
 #user-info {
     color: #aaa;
@@ -224,7 +226,6 @@ h1 .white-text { color: #ffffff; }
     border: 1px solid var(--border);
 }
 
-/* Styles pour la table générée par le JS */
 #leaderboard-container table {
     width: 100%;
     font-size: 0.9rem;
@@ -235,48 +236,39 @@ h1 .white-text { color: #ffffff; }
 #leaderboard-container td {
     padding: 6px 4px;
     border-bottom: 1px solid #333;
-    vertical-align: middle; /* Alignement vertical pour l'image */
+    vertical-align: middle; 
 }
 
-/* Style pour la photo de profil */
 .profile-pic {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    /* margin-right: 8px; -> Déplacé vers .profile-pic-wrapper */
-    /* vertical-align: middle; -> Non nécessaire dans un flex container */
     object-fit: cover;
 }
 
-/* Container pour l'image + couronne */
 .profile-pic-wrapper {
     position: relative;
-    width: 24px; /* Même taille que .profile-pic */
+    width: 24px; 
     height: 24px;
-    margin-right: 8px; /* On déplace la marge du .profile-pic vers le wrapper */
-    /* On retire vertical-align: middle du .profile-pic qui n'est plus pertinent dans un wrapper flex */
+    margin-right: 8px; 
 }
 
-/* Positionnement de la couronne */
 .crown-emoji {
     position: absolute;
     top: -16px; 
-    left: 10px; /* Ajuster la position horizontale */
+    left: 10px; 
     font-size: 1.08rem; 
-    z-index: 10; /* Assure que la couronne est au-dessus */
-    pointer-events: none; /* Ne bloque pas le clic si l'avatar devient cliquable */
-    transform: rotate(25deg); /* AUGMENTATION DE LA ROTATION */
+    z-index: 10; 
+    pointer-events: none; 
+    transform: rotate(25deg); 
 }
 
-/* Style pour le nom d'utilisateur avec image */
 .user-cell {
     display: flex;
     align-items: center;
 }
 
-#leaderboard-container tr:last-child td {
-    border-bottom: none;
-}
+#leaderboard-container tr:last-child td { border-bottom: none; }
 
 /* --- JEU --- */
 #game-area { 
@@ -346,8 +338,7 @@ h1 .white-text { color: #ffffff; }
     display: grid;
     grid-template-columns: repeat(var(--cols, 5), 1fr);
     gap: 2px;
-    margin: 0 auto 10px auto; /* Centrage horizontal */
-    /* On retire width: 100% pour laisser margin: auto agir si la grille est plus petite */
+    margin: 0 auto 10px auto; 
     width: fit-content;
     max-width: min(350px, calc(var(--cols) * 55px)); 
     justify-content: center;
@@ -426,11 +417,8 @@ h1 .white-text { color: #ffffff; }
 }
 
 .keyboard-button.wide { flex: 1.5; font-size: 0.75rem; max-width: 60px; }
-
-/* MODIFICATIONS POUR LES TOUCHES SPÉCIALES */
-.keyboard-button.btn-enter { background-color: #538d4e; } /* Vert */
-.keyboard-button.btn-back { background-color: #d9534f; } /* Rouge (comme abandonner) */
-
+.keyboard-button.btn-enter { background-color: #538d4e; } 
+.keyboard-button.btn-back { background-color: #d9534f; } 
 .keyboard-button:active { opacity: 0.7; }
 .keyboard-button.correct { background-color: var(--correct); }
 .keyboard-button.present { background-color: var(--present); }
@@ -449,7 +437,7 @@ h1 .white-text { color: #ffffff; }
 /* BOUTONS */
 #controls {
     display: flex;
-    flex-direction: column; /* Pour empiler les lignes */
+    flex-direction: column; 
     gap: 10px;
     margin-top: 10px;
     justify-content: center;
@@ -487,17 +475,12 @@ button:disabled {
     opacity: 0.7;
 }
 
-/* AJOUT DU STYLE POUR LE BOUTON DE PARTAGE */
 #share-btn { 
-    background-color: #1DA1F2; /* Bleu Twitter Officiel */ 
-    display: none; /* Caché par défaut */
+    background-color: #1DA1F2; 
+    display: none; 
 }
 
-/* BOUTON VALIDER */
-#validate-btn {
-    background-color: #538d4e; /* Vert comme ENTRÉE */
-}
-
+#validate-btn { background-color: #538d4e; }
 #restart-btn { background-color: var(--btn-primary); display: none; }
 #skip-btn { background-color: var(--btn-neutral); display: none; }
 #giveup-btn { background-color: var(--btn-danger); display: none; }
@@ -505,28 +488,26 @@ button:disabled {
 
 #status-area { color: #888; font-style: italic; margin-top: 20px; }
 
-/* --- STYLE ADMIN (Ajouté) --- */
 .menu-btn.admin-btn {
     background-color: #2c2c2e;
-    border: 1px solid #ffd700; /* Bordure dorée */
+    border: 1px solid #ffd700; 
     color: #ffd700;
 }
 
-.menu-btn.admin-btn:hover {
-    background-color: #444;
-}
+.menu-btn.admin-btn:hover { background-color: #444; }
 
-/* ÉCRAN PANEL ADMIN */
+/* --- ÉCRAN PANEL ADMIN (Mise à jour) --- */
 #admin-screen {
     display: none;
     flex-direction: column;
     align-items: center;
+    justify-content: center; /* CENTRE VERTICALEMENT */
     width: 100%;
     height: 100vh;
-    padding-top: 50px;
     background-color: var(--bg);
     position: fixed;
     top: 0;
     left: 0;
     z-index: 2000;
+    /* Plus de padding-top pour éviter le décalage */
 }
