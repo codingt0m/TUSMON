@@ -449,10 +449,29 @@ h1 .white-text { color: #ffffff; }
 /* BOUTONS */
 #controls {
     display: flex;
+    flex-direction: column;
     gap: 10px;
     margin-top: 10px;
-    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+}
+
+.controls-row {
+    display: flex;
+    gap: 10px;
     justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+/* NOUVEAU : Style vert pour le bouton valider (identique à Entrée) */
+#validate-btn {
+    background-color: #538d4e; /* Vert */
+    display: none; /* Caché par défaut, géré par le JS */
+}
+
+.controls-row.secondary {
+    margin-top: 5px;
 }
 
 button.action-btn, button.menu-btn {

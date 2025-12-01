@@ -538,8 +538,23 @@ function startDailyGame() {
     gameMode = 'daily';
     gamePool = [...pokemonList];
     activeFilters = []; 
-    const dailyIndex = getDailyPokemonIndex(pokemonList.length);
-    targetPokemon = pokemonList[dailyIndex];
+    
+    // --- Override pour le 25/12/2025 ---
+    const todayDate = getTodayDateKey();
+    if (todayDate === '2025-12-25') {
+        const X = pokemonList.find(p => p.id === "225");
+        if (X) {
+            targetPokemon = X;
+        } else {
+            // Fallback au cas où X n'est pas dans la liste
+            const dailyIndex = getDailyPokemonIndex(pokemonList.length);
+            targetPokemon = pokemonList[dailyIndex];
+        }
+    } else {
+        const dailyIndex = getDailyPokemonIndex(pokemonList.length);
+        targetPokemon = pokemonList[dailyIndex];
+    }
+    // --------------------------------------------------
     
     // Réinitialisation des états mémoire
     savedGrid = [];
@@ -658,6 +673,12 @@ function setupGameUI(isResuming = false, gameData = {}) {
     restartBtn.style.display = "none";
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
+    
+    // --- AJOUT ICI ---
+    // On affiche le bouton Valider au début du jeu
+    const validateBtn = document.getElementById('validate-btn');
+    if (validateBtn) validateBtn.style.display = "inline-block";
+    // -----------------
     
     valGen.classList.remove('revealed');
     hintStage.classList.remove('visible');
@@ -1177,6 +1198,12 @@ function endGame(isVictory, isShiny = false) {
         restartBtn.style.display = "inline-block"; 
     }
     
+    // --- AJOUT ICI ---
+    // On cache le bouton Valider à la fin de la partie
+    const validateBtn = document.getElementById('validate-btn');
+    if (validateBtn) validateBtn.style.display = "none";
+    // -----------------
+
     if (gameMode !== 'daily' && shareBtn) shareBtn.style.display = "none";
     giveupBtn.style.display = "none"; 
 }
