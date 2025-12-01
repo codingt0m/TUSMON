@@ -147,6 +147,9 @@ function updateAuthUI(user) {
     currentUser = user;
     const btnLogin = document.getElementById('btn-twitter-login');
     const txtInfo = document.getElementById('user-info');
+    
+    // Référence au bouton admin
+    const btnAdmin = document.getElementById('btn-admin-panel');
 
     if (user) {
         const handle = user.displayName || "Joueur";
@@ -154,6 +157,15 @@ function updateAuthUI(user) {
         txtInfo.style.display = 'block';
         txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
         
+        // --- LOGIQUE ADMIN ---
+        // Vérifie si le handle correspond exactement à celui attendu
+        if (handle === '@suedlemot') {
+            if (btnAdmin) btnAdmin.style.display = 'block';
+        } else {
+            if (btnAdmin) btnAdmin.style.display = 'none';
+        }
+        // ---------------------
+
         const todayKey = getTodayDateKey();
         const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
         
@@ -170,7 +182,21 @@ function updateAuthUI(user) {
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
+        
+        // Cache le bouton si déconnecté
+        if (btnAdmin) btnAdmin.style.display = 'none';
     }
+}
+
+// --- AJOUT : GESTION DU PANEL ADMIN ---
+function showAdminPanel() {
+    document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('admin-screen').style.display = 'flex';
+}
+
+function closeAdminPanel() {
+    document.getElementById('admin-screen').style.display = 'none';
+    document.getElementById('menu-screen').style.display = 'flex';
 }
 
 // FONCTION UTILITAIRE : Vérifier si le joueur a déjà un score sur le serveur
@@ -538,23 +564,8 @@ function startDailyGame() {
     gameMode = 'daily';
     gamePool = [...pokemonList];
     activeFilters = []; 
-    
-    // --- Override pour le 25/12/2025 ---
-    const todayDate = getTodayDateKey();
-    if (todayDate === '2025-12-25') {
-        const X = pokemonList.find(p => p.id === "225");
-        if (X) {
-            targetPokemon = X;
-        } else {
-            // Fallback au cas où X n'est pas dans la liste
-            const dailyIndex = getDailyPokemonIndex(pokemonList.length);
-            targetPokemon = pokemonList[dailyIndex];
-        }
-    } else {
-        const dailyIndex = getDailyPokemonIndex(pokemonList.length);
-        targetPokemon = pokemonList[dailyIndex];
-    }
-    // --------------------------------------------------
+    const dailyIndex = getDailyPokemonIndex(pokemonList.length);
+    targetPokemon = pokemonList[dailyIndex];
     
     // Réinitialisation des états mémoire
     savedGrid = [];
@@ -673,12 +684,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
     restartBtn.style.display = "none";
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
-    
-    // --- AJOUT ICI ---
-    // On affiche le bouton Valider au début du jeu
-    const validateBtn = document.getElementById('validate-btn');
-    if (validateBtn) validateBtn.style.display = "inline-block";
-    // -----------------
     
     valGen.classList.remove('revealed');
     hintStage.classList.remove('visible');
@@ -1198,12 +1203,6 @@ function endGame(isVictory, isShiny = false) {
         restartBtn.style.display = "inline-block"; 
     }
     
-    // --- AJOUT ICI ---
-    // On cache le bouton Valider à la fin de la partie
-    const validateBtn = document.getElementById('validate-btn');
-    if (validateBtn) validateBtn.style.display = "none";
-    // -----------------
-
     if (gameMode !== 'daily' && shareBtn) shareBtn.style.display = "none";
     giveupBtn.style.display = "none"; 
 }

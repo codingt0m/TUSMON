@@ -23,13 +23,14 @@
             <div class="menu-title">Défi Quotidien</div>
             <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
             <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
+            
+            <!-- AJOUT : BOUTON ADMIN (Caché par défaut) -->
+            <button id="btn-admin-panel" class="menu-btn admin-btn" style="display:none; margin-top:10px;" onclick="showAdminPanel()">PANEL ADMIN 🛠️</button>
         </div>
 
         <!-- SECTION LEADERBOARD  -->
         <div class="menu-section" id="leaderboard-section">
             <div class="menu-title">Classement du Jour 🏆</div>
-            <!-- AJOUT : Date du jour avec marge réduite -->
-            <!-- MODIFICATION ICI : margin-bottom passé de 10px à 2px -->
             <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
             
             <!-- Zone de connexion -->
@@ -81,7 +82,7 @@
 
         <div id="board"></div>
         
-        <!-- Image résultat fin de partie (déplacé au-dessus du texte) -->
+        <!-- Image résultat fin de partie -->
         <img id="pokemon-result-image" src="" alt="Pokémon">
         
         <div id="message"></div>
@@ -92,19 +93,29 @@
             <!-- Ligne 1 : Menu, Valider, Partager, Rejouer -->
             <div class="controls-row">
                 <button id="menu-return-btn" class="action-btn" onclick="showMenu()">Menu</button>
-                
-                <!-- NOUVEAU BOUTON VALIDER (Vert) -->
                 <button id="validate-btn" class="action-btn" onclick="checkGuess()">Valider</button>
-                
-                <!-- MODIFICATION : Ajout de l'emoji Twitter au bouton de partage -->
                 <button id="share-btn" class="action-btn" onclick="shareDailyResult()">Partager sur Twitter</button>
                 <button id="restart-btn" class="action-btn" onclick="restartCurrentMode()">Rejouer</button>
             </div>
 
-            <!-- Ligne 2 : Abandonner (En dessous) -->
+            <!-- Ligne 2 : Abandonner -->
             <div class="controls-row secondary">
                 <button id="giveup-btn" class="action-btn" onclick="giveUp()">Abandonner</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ECRAN PANEL ADMIN (Caché par défaut) -->
+    <div id="admin-screen" style="display:none;">
+        <h1>PANEL ADMIN</h1>
+        <div class="menu-section">
+            <p>Bienvenue Super Admin @suedlemot</p>
+            <p style="color:#aaa; font-style:italic; margin-bottom:20px;">(Outils d'administration à venir...)</p>
+            
+            <!-- Exemple de futur bouton -->
+            <!-- <button class="action-btn" onclick="resetDailyGame()">Reset Journée</button> -->
+            
+            <button class="action-btn" onclick="closeAdminPanel()">Retour au Menu</button>
         </div>
     </div>
 
