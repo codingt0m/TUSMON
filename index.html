@@ -4,36 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUSMON</title>
-    <!-- Favicon -->
     <link rel="icon" href="./ressources/favicon.ico" type="image/x-icon">
     
-    <!-- AJOUT 1 : Lien vers le fichier CSS -->
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
  
-    <!-- LOGO CLIQUEABLE -->
     <h1 onclick="handleLogoClick()" title="Retour au menu">TUS<span class="white-text">MON</span></h1>
 
     <div id="status-area">Chargement du Pokédex...</div>
 
-    <!-- MENU D'ACCUEIL -->
     <div id="menu-screen">
         <div class="menu-section">
             <div class="menu-title">Défi Quotidien</div>
             <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
             <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
-            
-            <!-- AJOUT : BOUTON ADMIN (Caché par défaut) -->
-            <button id="btn-admin-panel" class="menu-btn admin-btn" style="display:none; margin-top:10px;" onclick="showAdminPanel()">PANEL ADMIN 🛠️</button>
         </div>
 
-        <!-- SECTION LEADERBOARD  -->
+        <div id="admin-section" class="menu-section" style="display:none;">
+            <button id="btn-admin-panel" class="menu-btn admin-btn" onclick="showAdminPanel()">PANEL ADMIN 🛠️</button>
+        </div>
+
         <div class="menu-section" id="leaderboard-section">
             <div class="menu-title">Classement du Jour 🏆</div>
             <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
             
-            <!-- Zone de connexion -->
             <div id="auth-section" style="text-align: center; margin-bottom: 10px;">
                 <button id="btn-twitter-login" class="menu-btn" style="background-color: #1DA1F2; margin-top:5px; color: white;">
                     Se connecter avec Twitter
@@ -41,7 +36,6 @@
                 <p id="user-info" style="color: #aaa; font-size: 0.8rem; display:none;"></p>
             </div>
 
-            <!-- Le Tableau des scores -->
             <div id="leaderboard-container" style="background: #222; padding: 10px; border-radius: 5px; min-height: 100px;">
                 <p style="text-align:center; color:#666; font-size:0.8rem;">Chargement...</p>
             </div>
@@ -51,7 +45,6 @@
             <div class="menu-title">Mode Aléatoire</div>
             <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
             
-            <!-- Bouton tout cocher -->
             <div style="text-align: center;">
                 <button class="mini-btn" onclick="selectAllGens()">Tout cocher</button>
             </div>
@@ -61,17 +54,14 @@
         </div>
     </div>
 
-    <!-- POPUP IMAGE GENERATION -->
     <div id="gen-popup">
         <img id="gen-img" src="" alt="Image Génération">
     </div>
 
-    <!-- ZONE DE JEU -->
     <div id="game-area">
         <div id="info-bar">
             <div id="mode-badge">POKÉMON DU JOUR</div>
             <div id="hint-box">
-                <!-- Ajout des événements de survol ici -->
                 <div id="hint-gen" class="hint-tag" onmouseenter="showGenPopup()" onmouseleave="hideGenPopup()">
                     <span class="hint-label" id="lbl-gen">GÉN:</span><span class="hint-value" id="val-gen"></span>
                 </div>
@@ -82,7 +72,6 @@
 
         <div id="board"></div>
         
-        <!-- Image résultat fin de partie -->
         <img id="pokemon-result-image" src="" alt="Pokémon">
         
         <div id="message"></div>
@@ -90,7 +79,6 @@
         <div id="keyboard-cont"></div>
         
         <div id="controls">
-            <!-- Ligne 1 : Menu, Valider, Partager, Rejouer -->
             <div class="controls-row">
                 <button id="menu-return-btn" class="action-btn" onclick="showMenu()">Menu</button>
                 <button id="validate-btn" class="action-btn" onclick="checkGuess()">Valider</button>
@@ -98,22 +86,17 @@
                 <button id="restart-btn" class="action-btn" onclick="restartCurrentMode()">Rejouer</button>
             </div>
 
-            <!-- Ligne 2 : Abandonner -->
             <div class="controls-row secondary">
                 <button id="giveup-btn" class="action-btn" onclick="giveUp()">Abandonner</button>
             </div>
         </div>
     </div>
 
-    <!-- ECRAN PANEL ADMIN (Caché par défaut) -->
     <div id="admin-screen" style="display:none;">
         <h1>PANEL ADMIN</h1>
         <div class="menu-section">
             <p>Bienvenue Super Admin @suedlemot</p>
             <p style="color:#aaa; font-style:italic; margin-bottom:20px;">(Outils d'administration à venir...)</p>
-            
-            <!-- Exemple de futur bouton -->
-            <!-- <button class="action-btn" onclick="resetDailyGame()">Reset Journée</button> -->
             
             <button class="action-btn" onclick="closeAdminPanel()">Retour au Menu</button>
         </div>

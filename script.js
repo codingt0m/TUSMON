@@ -148,8 +148,8 @@ function updateAuthUI(user) {
     const btnLogin = document.getElementById('btn-twitter-login');
     const txtInfo = document.getElementById('user-info');
     
-    // Référence au bouton admin
-    const btnAdmin = document.getElementById('btn-admin-panel');
+    // Référence au conteneur admin (au lieu du bouton seul)
+    const adminSection = document.getElementById('admin-section');
 
     if (user) {
         const handle = user.displayName || "Joueur";
@@ -160,9 +160,9 @@ function updateAuthUI(user) {
         // --- LOGIQUE ADMIN ---
         // Vérifie si le handle correspond exactement à celui attendu
         if (handle === '@suedlemot') {
-            if (btnAdmin) btnAdmin.style.display = 'block';
+            if (adminSection) adminSection.style.display = 'flex'; // menu-section est en flex
         } else {
-            if (btnAdmin) btnAdmin.style.display = 'none';
+            if (adminSection) adminSection.style.display = 'none';
         }
         // ---------------------
 
@@ -183,8 +183,8 @@ function updateAuthUI(user) {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
         
-        // Cache le bouton si déconnecté
-        if (btnAdmin) btnAdmin.style.display = 'none';
+        // Cache la section admin si déconnecté
+        if (adminSection) adminSection.style.display = 'none';
     }
 }
 
