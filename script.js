@@ -75,21 +75,39 @@ const keyboardLayout = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"];
 
 // --- GESTION FIREBASE (AUTH & LEADERBOARD) ---
 
-// 1. Connexion Twitter
+// 1. Connexion Twitter (CORRIGÉE)
 function loginWithTwitter() {
     if (!auth) return;
     const provider = new firebase.auth.TwitterAuthProvider();
     auth.signInWithPopup(provider)
         .then((result) => {
+            // Récupération du handle Twitter brut (sans le @) depuis les infos additionnelles
             const twitterHandle = result.additionalUserInfo?.username;
+            
             if(twitterHandle) {
-                 result.user.updateProfile({ displayName: '@' + twitterHandle }).then(() => {
+                 // On formate le nouveau nom d'affichage avec le @
+                 const newDisplayName = '@' + twitterHandle;
+
+                 // On demande à Firebase de mettre à jour le profil utilisateur
+                 result.user.updateProfile({ displayName: newDisplayName }).then(() => {
+                     // IMPORTANT : On force l'objet local à prendre la nouvelle valeur immédiatement
+                     // pour éviter un délai d'affichage ou l'envoi de l'ancien nom
+                     result.user.displayName = newDisplayName; 
+                     currentUser = result.user; 
+                     
                      updateAuthUI(result.user);
+                     loadLeaderboard(); // On charge le classement seulement APRÈS la mise à jour garantie
+                 }).catch((error) => {
+                     console.error("Erreur lors de la mise à jour du nom :", error);
+                     // En cas d'erreur technique, on continue avec le nom qu'on a
+                     updateAuthUI(result.user);
+                     loadLeaderboard();
                  });
             } else {
+                // Si pas de handle Twitter trouvé (cas rare), on garde le nom par défaut
                 updateAuthUI(result.user);
+                loadLeaderboard();
             }
-            loadLeaderboard(); 
         }).catch((error) => {
             console.error(error);
             alert("Erreur de connexion Twitter : " + error.message);
@@ -1219,7 +1237,7 @@ function generateEmojiGrid() {
                 mainMessage = `TUSMON - J'ai deviné le Pokémon du jour en ${scoreDisplay}`;
             }
         } else {
-            mainMessage = `TUSMON - J'ai échoué à deviner le Pokémon du jour !`;
+            mainMessage = `TUSMON - J'ai échoué à deviner le Pokémon du jour :(`;
         }
 
         const emojiGrid = (result.grid && Array.isArray(result.grid)) 

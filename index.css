@@ -260,9 +260,9 @@ h1 .white-text { color: #ffffff; }
 /* Positionnement de la couronne */
 .crown-emoji {
     position: absolute;
-    top: -16px; /* REMONTÉ À -18PX */
+    top: -16px; 
     left: 10px; /* Ajuster la position horizontale */
-    font-size: 1.08rem; /* RÉDUCTION DE 10% */
+    font-size: 1.08rem; 
     z-index: 10; /* Assure que la couronne est au-dessus */
     pointer-events: none; /* Ne bloque pas le clic si l'avatar devient cliquable */
     transform: rotate(25deg); /* AUGMENTATION DE LA ROTATION */
