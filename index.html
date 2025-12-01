@@ -92,13 +92,42 @@
         </div>
     </div>
 
-    <div id="admin-screen" style="display:none;">
-        <h1>PANEL ADMIN</h1>
-        <div class="menu-section">
-            <p>Bienvenue Super Admin @suedlemot</p>
-            <p style="color:#aaa; font-style:italic; margin-bottom:20px;">(Outils d'administration à venir...)</p>
+    <div id="admin-screen" style="display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+        
+        <h1 onclick="closeAdminPanel()" style="cursor:pointer; margin-bottom: 20px;" title="Retour au menu principal">
+            TUS<span class="white-text">MON</span>
+            <span style="display:block; font-size: 1rem; color: #888; letter-spacing: 5px; margin-top: -5px; text-transform: uppercase;">ADMINISTRATION</span>
+        </h1>
+
+        <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px;">
             
-            <button class="action-btn" onclick="closeAdminPanel()">Retour au Menu</button>
+            <div class="menu-section">
+                <div class="menu-title">Connexion</div>
+                <p style="text-align:center; color:#ddd; margin:0;">
+                    Connecté en tant que :<br> 
+                    <strong style="color:var(--correct); font-size:1.1rem;">@suedlemot</strong>
+                </p>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Outils de Gestion</div>
+                <p style="text-align:center; font-size:0.85rem; color:#aaa; font-style:italic; margin-bottom:10px;">
+                    Fonctionnalités en cours de développement
+                </p>
+                <button class="mini-btn" disabled style="width:100%; padding:10px; background-color:#333; color:#666; cursor:not-allowed;">
+                    Réinitialiser le Jour
+                </button>
+                <button class="mini-btn" disabled style="width:100%; padding:10px; margin-top:5px; background-color:#333; color:#666; cursor:not-allowed;">
+                    Gérer les Utilisateurs
+                </button>
+            </div>
+
+            <div class="menu-section">
+                <button class="action-btn" onclick="closeAdminPanel()" style="width:100%; background-color: var(--btn-neutral);">
+                    RETOUR AU MENU PRINCIPAL
+                </button>
+            </div>
+
         </div>
     </div>
 

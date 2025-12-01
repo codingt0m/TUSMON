@@ -148,7 +148,7 @@ function updateAuthUI(user) {
     const btnLogin = document.getElementById('btn-twitter-login');
     const txtInfo = document.getElementById('user-info');
     
-    // Référence au conteneur admin (au lieu du bouton seul)
+    // Référence au conteneur du bouton admin
     const adminSection = document.getElementById('admin-section');
 
     if (user) {
@@ -160,7 +160,8 @@ function updateAuthUI(user) {
         // --- LOGIQUE ADMIN ---
         // Vérifie si le handle correspond exactement à celui attendu
         if (handle === '@suedlemot') {
-            if (adminSection) adminSection.style.display = 'flex'; // menu-section est en flex
+            // Affiche le bloc complet contenant le bouton admin
+            if (adminSection) adminSection.style.display = 'flex';
         } else {
             if (adminSection) adminSection.style.display = 'none';
         }
@@ -190,11 +191,13 @@ function updateAuthUI(user) {
 
 // --- AJOUT : GESTION DU PANEL ADMIN ---
 function showAdminPanel() {
+    // Cache le menu, Affiche le panel admin en flex (pour centrer)
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'flex';
 }
 
 function closeAdminPanel() {
+    // Cache le panel admin, Réaffiche le menu
     document.getElementById('admin-screen').style.display = 'none';
     document.getElementById('menu-screen').style.display = 'flex';
 }
