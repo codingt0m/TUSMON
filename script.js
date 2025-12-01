@@ -33,6 +33,10 @@ let activeFilters = [];
 let allGenerations = []; 
 let lastPlayedId = null; // Variable pour stocker le dernier Pokémon joué (anti-doublon en aléatoire)
 
+// Variables pour la persistance de l'état (Sauvegarde)
+let savedGrid = [];     // Stocke les emojis des lignes validées
+let savedGuesses = [];  // Stocke les mots des lignes validées
+
 // Variable pour l'Easter Egg
 let logoClickCount = 0;
 
@@ -73,38 +77,62 @@ const genImg = document.getElementById('gen-img');
 
 const keyboardLayout = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"];
 
+// --- GESTION SAUVEGARDE ET FERMETURE ---
+
+// Sauvegarder l'état actuel (appelé quand on quitte ou à chaque action importante)
+function saveDailyState() {
+    if (gameMode !== 'daily' || !targetPokemon) return;
+
+    const todayKey = getTodayDateKey();
+    
+    // Construction de l'objet de sauvegarde
+    const gameState = {
+        status: isGameOver ? 'completed' : 'in-progress',
+        targetId: targetPokemon.id,
+        currentRow: currentRow,
+        currentGuess: currentGuess, // Le mot en cours de frappe
+        grid: savedGrid,
+        guesses: savedGuesses,
+        won: isGameOver && messageEl.textContent.includes("Bravo"), // Simplifié
+        attempts: currentRow + (isGameOver && messageEl.textContent.includes("Bravo") ? 0 : 0) // Ajusté à la fin
+    };
+
+    if (isGameOver) {
+        gameState.attempts = currentRow + 1; // Si fini, on fige le nombre d'essais
+    }
+
+    localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameState));
+}
+
+// Écouteur pour la fermeture de l'onglet ou du navigateur
+window.addEventListener('beforeunload', () => {
+    if (gameMode === 'daily' && !isGameOver) {
+        saveDailyState();
+    }
+});
+
 // --- GESTION FIREBASE (AUTH & LEADERBOARD) ---
 
-// 1. Connexion Twitter (CORRIGÉE)
+// 1. Connexion Twitter
 function loginWithTwitter() {
     if (!auth) return;
     const provider = new firebase.auth.TwitterAuthProvider();
     auth.signInWithPopup(provider)
         .then((result) => {
-            // Récupération du handle Twitter brut (sans le @) depuis les infos additionnelles
             const twitterHandle = result.additionalUserInfo?.username;
-            
             if(twitterHandle) {
-                 // On formate le nouveau nom d'affichage avec le @
                  const newDisplayName = '@' + twitterHandle;
-
-                 // On demande à Firebase de mettre à jour le profil utilisateur
                  result.user.updateProfile({ displayName: newDisplayName }).then(() => {
-                     // IMPORTANT : On force l'objet local à prendre la nouvelle valeur immédiatement
-                     // pour éviter un délai d'affichage ou l'envoi de l'ancien nom
                      result.user.displayName = newDisplayName; 
                      currentUser = result.user; 
-                     
                      updateAuthUI(result.user);
-                     loadLeaderboard(); // On charge le classement seulement APRÈS la mise à jour garantie
+                     loadLeaderboard(); 
                  }).catch((error) => {
-                     console.error("Erreur lors de la mise à jour du nom :", error);
-                     // En cas d'erreur technique, on continue avec le nom qu'on a
+                     console.error("Erreur maj nom:", error);
                      updateAuthUI(result.user);
                      loadLeaderboard();
                  });
             } else {
-                // Si pas de handle Twitter trouvé (cas rare), on garde le nom par défaut
                 updateAuthUI(result.user);
                 loadLeaderboard();
             }
@@ -136,13 +164,9 @@ function updateAuthUI(user) {
                     console.log("Score local trouvé. Synchronisation...");
                     saveScoreToFirebase(result.won, result.attempts);
                 }
-            } catch (e) {
-                // Ignore les anciens formats
-            }
+            } catch (e) {}
         }
-
         checkRemoteDailyStatus();
-
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
@@ -163,6 +187,7 @@ function checkRemoteDailyStatus() {
             if (btnDaily) {
                 btnDaily.disabled = true;
                 btnDaily.textContent = "DÉJÀ JOUÉ"; 
+                // On met à jour le local storage pour refléter que c'est fini
                 if (!localStorage.getItem('tusmon_daily_' + todayKey)) {
                      localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({status: 'completed', remote: true}));
                 }
@@ -180,17 +205,12 @@ function loadLeaderboard() {
         const titleEl = leaderboardSection.querySelector('.menu-title');
         if (titleEl) {
             titleEl.textContent = "Classement du Jour 🏆";
-
             const now = new Date();
             const options = { weekday: 'long', day: 'numeric', month: 'long' };
             let dateStr = now.toLocaleDateString('fr-FR', options);
-            
-            dateStr = dateStr.split(' ')
-                             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                             .join(' ');
+            dateStr = dateStr.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
             let dateEl = document.getElementById('leaderboard-date-subtitle');
-            
             if (!dateEl) {
                 dateEl = document.createElement('div');
                 dateEl.id = 'leaderboard-date-subtitle';
@@ -225,14 +245,7 @@ function loadLeaderboard() {
             let rank = 1;
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                
-                let scoreDisplay;
-                if (data.won) {
-                    scoreDisplay = `${data.attempts} essai${data.attempts > 1 ? 's' : ''}`;
-                } else {
-                    scoreDisplay = "Perdu";
-                }
-
+                let scoreDisplay = data.won ? `${data.attempts} essai${data.attempts > 1 ? 's' : ''}` : "Perdu";
                 const color = data.won ? '#538d4e' : '#d9534f';
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
@@ -240,30 +253,16 @@ function loadLeaderboard() {
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
                 
-                let crownHtml = '';
-                if (rank === 1) {
-                    crownHtml = '<span class="crown-emoji">👑</span>';
-                }
-
+                let crownHtml = rank === 1 ? '<span class="crown-emoji">👑</span>' : '';
                 let userLink = data.handle || 'Anonyme';
                 if (data.handle && data.handle.startsWith('@')) {
                     const twitterUser = data.handle.substring(1);
                     userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
-                } else if (data.handle) {
-                     userLink = `<a href="https://twitter.com/${data.handle}" target="_blank" style="color: inherit; text-decoration: none;">${data.handle}</a>`;
                 }
 
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
-                            <td>
-                                <div class="user-cell">
-                                    <div class="profile-pic-wrapper">
-                                        ${imgHtml}
-                                        ${crownHtml}
-                                    </div>
-                                    <span>${userLink}</span>
-                                </div>
-                            </td>
+                            <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${crownHtml}</div><span>${userLink}</span></div></td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
                          </tr>`;
                 rank++;
@@ -279,7 +278,6 @@ function loadLeaderboard() {
 
 function saveScoreToFirebase(won, attempts) {
     if (!currentUser || !db) return;
-
     const dateKey = getTodayDateKey();
     const userHandle = currentUser.displayName || "Joueur";
     const userPhoto = currentUser.photoURL || null;
@@ -287,27 +285,21 @@ function saveScoreToFirebase(won, attempts) {
     const userScoreRef = db.collection('daily_scores').doc(dateKey).collection('players').doc(currentUser.uid);
 
     userScoreRef.get().then((docSnapshot) => {
-        if (docSnapshot.exists) {
-            console.log("Score déjà existant en base. Pas d'écrasement.");
-            loadLeaderboard();
-            checkRemoteDailyStatus();
-        } else {
+        if (!docSnapshot.exists) {
             userScoreRef.set({
                 handle: userHandle,
                 photoURL: userPhoto,
                 attempts: attempts,
                 won: won,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                console.log("Score envoyé avec succès !");
+            }).then(() => {
                 loadLeaderboard(); 
                 checkRemoteDailyStatus();
-            })
-            .catch((error) => console.error("Erreur envoi score:", error));
+            });
+        } else {
+            loadLeaderboard();
+            checkRemoteDailyStatus();
         }
-    }).catch((error) => {
-        console.error("Erreur lors de la vérification du score:", error);
     });
 }
 
@@ -413,25 +405,10 @@ function handleLogoClick() {
 }
 
 function showMenu() {
-    // --- NOUVEAU : Sauvegarde de l'état de la partie en cours avant de quitter ---
+    // Si on est en mode daily et que la partie n'est pas finie, on sauvegarde
     if (gameMode === 'daily' && !isGameOver && targetPokemon) {
-        const todayKey = getTodayDateKey();
-        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
-        
-        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [], guesses: [] };
-        
-        // Sauvegarde des variables de jeu
-        gameResult.currentRow = currentRow;
-        gameResult.currentGuess = currentGuess; // Le mot en cours de frappe
-        gameResult.targetId = targetPokemon.id;
-        
-        if (gameResult.status !== 'completed') {
-            gameResult.status = 'in-progress'; 
-        }
-
-        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
+        saveDailyState(); // Sauvegarde cruciale avant de quitter l'écran
     }
-    // --------------------------------------------------------------------------
 
     gameArea.style.display = 'none';
     menuScreen.style.display = 'flex';
@@ -446,7 +423,7 @@ function showMenu() {
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
     
     let hasPlayedDaily = false;
-    let isInProgress = false; // Flag pour reprise
+    let isInProgress = false;
     
     if (storedData) {
         try {
@@ -462,7 +439,7 @@ function showMenu() {
     if (hasPlayedDaily) {
         btnDailyStart.disabled = true;
         btnDailyStart.textContent = "DÉJÀ JOUÉ AUJOURD'HUI";
-    } else if (isInProgress) { // Cas "Reprendre"
+    } else if (isInProgress) {
         btnDailyStart.disabled = false;
         btnDailyStart.textContent = "REPRENDRE LA PARTIE";
     } else {
@@ -494,7 +471,6 @@ function triggerFallingItems(content, isImage = false, originElement = null, cou
 
     for (let i = 0; i < count; i++) {
         let element;
-        
         if (isImage) {
             element = document.createElement('img');
             element.src = content;
@@ -510,7 +486,6 @@ function triggerFallingItems(content, isImage = false, originElement = null, cou
             const randomX = (Math.random() - 0.5) * rect.width; 
             element.style.left = (rect.left + rect.width / 2 + randomX) + 'px';
             element.style.top = (rect.top + rect.height / 2) + 'px';
-            
             const randomDrift = (Math.random() - 0.5) * 300; 
             element.style.setProperty('--fall-x', randomDrift + 'px');
         } else {
@@ -523,10 +498,7 @@ function triggerFallingItems(content, isImage = false, originElement = null, cou
         element.style.opacity = Math.random();
         
         document.body.appendChild(element);
-
-        setTimeout(() => {
-            element.remove();
-        }, 5000);
+        setTimeout(() => { element.remove(); }, 5000);
     }
 }
 
@@ -542,19 +514,14 @@ function triggerPokeballRain() {
 // --- GESTION POPUP IMAGE ---
 function showGenPopup() {
     const content = valGen.textContent;
-    
     if (/^\d+$/.test(content)) {
         const genNum = content;
         genImg.src = `./ressources/img/${genNum}.jpg`;
-        
         const rect = hintGen.getBoundingClientRect();
-        
         let leftPos = rect.left + (rect.width / 2) - 225; 
         if (leftPos < 10) leftPos = 10; 
-        
         let topPos = rect.top - 380; 
         if (topPos < 10) topPos = rect.bottom + 10; 
-        
         genPopup.style.left = leftPos + 'px';
         genPopup.style.top = topPos + 'px';
         genPopup.style.display = 'block';
@@ -574,34 +541,38 @@ function startDailyGame() {
     const dailyIndex = getDailyPokemonIndex(pokemonList.length);
     targetPokemon = pokemonList[dailyIndex];
     
+    // Réinitialisation des états mémoire
+    savedGrid = [];
+    savedGuesses = [];
+    
     const todayKey = getTodayDateKey();
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
     let gameData = null;
     let isResuming = false;
     
-    // Tenter de charger les données et vérifier l'état
     if (storedData) {
         try {
             gameData = JSON.parse(storedData);
-            
-            // Vérifier si la partie est en cours ET si c'est bien le même Pokémon du jour
             if (gameData.status === 'in-progress' && gameData.targetId === targetPokemon.id) {
                 isResuming = true;
                 console.log("Reprise de la partie quotidienne...");
             }
         } catch (e) {
-            console.error("Erreur de parsing des données locales:", e);
+            console.error("Erreur parsing:", e);
         }
     }
 
     if (!isResuming) {
-        // NOUVELLE PARTIE : Réinitialiser la grille locale
-        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({ 
+        // NOUVELLE PARTIE : On écrase l'ancien localStorage pour être propre
+        const initialState = { 
             status: 'in-progress', 
             grid: [],
             guesses: [],
-            targetId: targetPokemon.id
-        }));
+            targetId: targetPokemon.id,
+            currentRow: 0,
+            currentGuess: ""
+        };
+        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(initialState));
     }
 
     setupGameUI(isResuming, gameData);
@@ -634,15 +605,12 @@ function pickRandomPokemon() {
         targetPokemon = gamePool[0];
         return;
     }
-
     let randomIndex;
     let newPokemon;
-
     do {
         randomIndex = Math.floor(Math.random() * gamePool.length);
         newPokemon = gamePool[randomIndex];
     } while (newPokemon.id === lastPlayedId);
-    
     targetPokemon = newPokemon;
     lastPlayedId = targetPokemon.id;
 }
@@ -677,7 +645,6 @@ function skipToClassic() {
 function setupGameUI(isResuming = false, gameData = {}) {
     menuScreen.style.display = 'none';
     gameArea.style.display = 'flex';
-    
     keyboardCont.style.display = 'flex';
 
     isGameOver = false;
@@ -693,30 +660,22 @@ function setupGameUI(isResuming = false, gameData = {}) {
     menuReturnBtn.style.display = "inline-block";
     
     valGen.classList.remove('revealed');
-
     hintStage.classList.remove('visible');
     hintType.classList.remove('visible');
     
     if (gameMode === 'daily') {
         modeBadge.textContent = "POKÉMON DU JOUR";
         modeBadge.classList.remove('classic');
-        
         lblGen.textContent = "GÉN:";
         valGen.textContent = ""; 
         valGen.style.textTransform = ""; 
-        
-        // MODIF CORRECTION : Toujours masquer l'indice de génération au départ en mode daily.
-        // C'est updateHints() qui s'occupera de l'afficher si currentRow >= 4.
         hintGen.classList.remove('visible'); 
     } else {
         modeBadge.textContent = "MODE ALÉATOIRE";
         modeBadge.classList.add('classic');
-        
         lblGen.textContent = "GÉN:";
-        
         const unselected = allGenerations.filter(g => !activeFilters.includes(g));
         let filtersText = "";
-
         if (unselected.length === 0) {
                 filtersText = "Toutes"; 
         } else if (unselected.length <= 2) {
@@ -724,7 +683,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
         } else {
             filtersText = activeFilters.sort((a,b)=>parseInt(a)-parseInt(b)).join(', ');
         }
-        
         valGen.textContent = filtersText;
         valGen.style.textTransform = "none"; 
         hintGen.classList.add('visible'); 
@@ -737,7 +695,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
     targetWord = targetPokemon.normalized;
     wordLength = targetWord.length;
     
-
     knownLetters = new Array(wordLength).fill(null);
     knownLetters[0] = targetWord[0]; 
     for (let i = 0; i < wordLength; i++) {
@@ -746,14 +703,27 @@ function setupGameUI(isResuming = false, gameData = {}) {
     }
 
     // Initialisation ou reprise
+    currentRow = 0;
+    currentGuess = targetWord[0];
+
     if (isResuming) {
+        // Chargement des données de sauvegarde
+        savedGrid = gameData.grid || [];
+        savedGuesses = gameData.guesses || [];
         currentRow = gameData.currentRow || 0;
-        currentGuess = gameData.currentGuess || targetWord[0];
-    } else {
-        currentRow = 0;
-        currentGuess = targetWord[0];
+        
+        // Sécurité : si currentRow = 0 mais qu'on a des grilles, on avance
+        if (currentRow === 0 && savedGrid.length > 0) {
+            currentRow = savedGrid.length;
+        }
+        
+        // RESTAURATION DU MOT EN COURS (celui qu'on tapait avant de quitter)
+        if (gameData.currentGuess && gameData.currentGuess.length > 0) {
+            currentGuess = gameData.currentGuess;
+        } else {
+            currentGuess = targetWord[0]; // Par défaut première lettre
+        }
     }
-    fixedLength = 1; 
 
     board.innerHTML = "";
     board.style.setProperty('--cols', wordLength);
@@ -764,73 +734,81 @@ function setupGameUI(isResuming = false, gameData = {}) {
         board.appendChild(tile);
     }
 
-    // --- RESTAURATION DE LA GRILLE ---
-    if (isResuming && gameData.guesses && gameData.grid) { 
-        restoreGameSession(gameData.guesses, gameData.grid); 
+    // --- RESTAURATION ---
+    if (isResuming) { 
+        restoreGameSession(); 
     } 
 
-    updateGrid();
+    updateGrid(); // Affiche le mot en cours (currentGuess)
     updateHints();
 }
 
-// --- NOUVEAU : Fonction de restauration de session CORRIGÉE (Emoji Fix) ---
-function restoreGameSession(guesses, grid) {
+// --- FONCTION DE RESTAURATION AMÉLIORÉE ---
+function restoreGameSession() {
     let globalKeyUpdates = {};
     
-    // On boucle sur toutes les lignes complétées (jusqu'à currentRow - 1)
-    for (let r = 0; r < currentRow; r++) {
-        const guess = guesses[r];
-        const resultString = grid[r];
+    // On boucle sur les lignes déjà validées (stockées dans savedGuesses/savedGrid)
+    // On utilise savedGrid.length comme référence car c'est la vérité terrain des essais validés
+    const linesToRestore = savedGrid.length;
+
+    for (let r = 0; r < linesToRestore; r++) {
+        const resultString = savedGrid[r];
+        const guessWord = savedGuesses[r] || ""; // Mot sauvegardé ou vide si vieille sauvegarde
+        const emojiArray = [...resultString]; // Conversion pour gérer les emojis correctement
+
         const startIdx = r * wordLength;
 
-        if (!guess || !resultString) continue; 
-        
-        // IMPORTANT: Conversion de la chaîne d'emojis en tableau pour gérer les paires de substitution
-        const emojiArray = [...resultString]; 
-
-        if (guess.length !== wordLength) continue; 
-
-        // 1. Remplir les tuiles
+        // Remplir les tuiles de cette ligne
         for (let c = 0; c < wordLength; c++) {
             const tile = document.getElementById('tile-' + (startIdx + c));
-            const char = guess[c];
-            // Utilisation du tableau d'emojis pour l'index correct
-            const stateChar = emojiArray[c];
+            
+            // 1. Récupération de la lettre
+            let char = "";
+            if (guessWord && guessWord[c]) {
+                char = guessWord[c];
+            } else {
+                // FALLBACK : Si pas de mot sauvegardé (vieux format), on triche intelligemment
+                // Si la case est VERTE (rouge dans le code), on met la lettre de la réponse
+                if (emojiArray[c] === '🟥' && targetWord[c]) {
+                    char = targetWord[c];
+                }
+            }
             
             tile.textContent = char;
             tile.classList.add('flip'); 
             
+            // 2. Application des couleurs
             let stateClass = 'absent';
             let keyboardState = 'absent';
+            const stateChar = emojiArray[c];
             
             switch (stateChar) {
-                case '🟥': 
+                case '🟥': // Correct
                     stateClass = 'correct'; 
                     keyboardState = 'correct';
-                    // Met à jour knownLetters pour les lettres correctement placées (vert)
                     if (char) knownLetters[c] = char; 
                     break;
-                case '🟨': 
+                case '🟨': // Présent
                     stateClass = 'present'; 
                     keyboardState = 'present';
                     break;
-                case '⬛':
+                case '⬛': // Absent
                 default: 
                     stateClass = 'absent'; 
                     keyboardState = 'absent';
             }
-            
             tile.classList.add(stateClass);
             
-            // 2. Préparer la mise à jour globale du clavier
+            // 3. Mise à jour clavier
             if (char) {
                 const charUpper = char.toUpperCase();
+                // Logique de priorité des couleurs clavier (Vert > Jaune > Gris)
                 if (globalKeyUpdates[charUpper] === 'correct') {
-                    // R conserve l'état 'correct'
+                    // Reste vert
                 } else if (keyboardState === 'correct') {
                     globalKeyUpdates[charUpper] = 'correct';
                 } else if (globalKeyUpdates[charUpper] === 'present' && keyboardState === 'absent') {
-                    // R conserve l'état 'present'
+                    // Reste jaune
                 } else if (keyboardState === 'present') {
                     globalKeyUpdates[charUpper] = 'present';
                 } else if (!globalKeyUpdates[charUpper]) {
@@ -1064,25 +1042,29 @@ function checkGuess() {
         }
     });
 
-    // Enregistrement de la ligne d'emojis ET du mot deviné
+    // --- SAUVEGARDE DE L'ESSAI ---
     if (gameMode === 'daily') {
-        const todayKey = getTodayDateKey();
-        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
+        // Mise à jour des variables globales
+        savedGrid.push(rowResult);
+        savedGuesses.push(currentGuess);
         
-        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [], guesses: [] };
+        // On incrémente currentRow après la sauvegarde locale mais avant la sauvegarde disque
+        // pour que saveDailyState prenne le bon index
+        // ATTENTION : saveDailyState utilise la variable globale currentRow.
+        // Ici, on veut dire que l'essai courant est validé.
         
-        if (!Array.isArray(gameResult.grid)) gameResult.grid = [];
-        if (!Array.isArray(gameResult.guesses)) gameResult.guesses = [];
+        // On sauvegarde tout de suite avec currentRow actuel (l'essai vient d'être fait)
+        // Mais currentRow ne sera incrémenté visuellement qu'à la fin de l'anim.
+        // Pour la sauvegarde, on veut marquer que cet essai est fait.
         
-        gameResult.grid[currentRow] = rowResult; 
-        gameResult.guesses[currentRow] = currentGuess; // Sauvegarde le mot joué
+        // On simule l'incrément pour la sauvegarde
+        currentRow++; 
+        currentGuess = ""; // On vide pour la sauvegarde
         
-        // --- CORRECTIF : Sauvegarde de l'avancement pour le refresh ---
-        gameResult.currentRow = currentRow + 1; // On passe à la ligne suivante dans la sauvegarde
-        gameResult.currentGuess = targetWord.length > 0 ? targetWord[0] : ""; // Reset du mot en cours pour la nouvelle ligne
-        // --------------------------------------------------------------
+        saveDailyState(); // Sauvegarde !
         
-        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
+        currentRow--; // On remet pour finir l'animation proprement
+        currentGuess = guessArray.join(''); // On remet pour l'anim
     }
 
     rowTiles.forEach((tile, i) => {
@@ -1113,6 +1095,12 @@ function checkGuess() {
         } else {
             currentRow++;
             currentGuess = targetWord[0];
+            
+            // Mise à jour de la sauvegarde pour dire "je suis prêt pour la ligne suivante"
+            if (gameMode === 'daily') {
+                saveDailyState(); 
+            }
+            
             updateGrid();
             updateHints();
             isProcessing = false;
@@ -1177,35 +1165,14 @@ function endGame(isVictory, isShiny = false) {
     }
 
     if (gameMode === 'daily') {
-        const todayKey = getTodayDateKey();
-        
-        const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
-        let gameResult = storedData ? JSON.parse(storedData) : { status: 'in-progress', grid: [] };
-        
-        gameResult.status = 'completed';
-        gameResult.won = isVictory;
-        gameResult.attempts = currentRow + 1;
-        
-        const dailyIndex = getDailyPokemonIndex(pokemonList.length);
-        gameResult.dailyId = pokemonList[dailyIndex].id; 
-        
-        if (!isVictory && gameResult.grid.length < maxGuesses) {
-            const emptyLine = '⬛'.repeat(wordLength);
-            while (gameResult.grid.length < maxGuesses) {
-                gameResult.grid.push(emptyLine);
-            }
-        }
-        
-        localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameResult));
+        saveDailyState(); // Sauvegarde finale
         
         restartBtn.style.display = "none"; 
-
         if (shareBtn) shareBtn.style.display = "inline-block";
         giveupBtn.style.display = "none"; 
         
         let attemptsCount = currentRow + 1;
         saveScoreToFirebase(isVictory, attemptsCount);
-        
     } else {
         restartBtn.style.display = "inline-block"; 
     }
@@ -1224,7 +1191,6 @@ function generateEmojiGrid() {
 
     try {
         const result = JSON.parse(storedData);
-        
         let scoreDisplay = result.won 
             ? `${result.attempts} coup${result.attempts > 1 ? 's' : ''}`
             : `X coups`;
@@ -1245,15 +1211,12 @@ function generateEmojiGrid() {
             : '';
             
         const tweetText = `${mainMessage}\n\n${emojiGrid}\n\ntusmon.vercel.app`;
-
         return tweetText;
 
     } catch (e) {
-        console.error("Erreur de parsing du localStorage pour le partage:", e);
         return `J'ai joué à TUSMON aujourd'hui !\n\nhttps://tusmon.vercel.app`;
     }
 }
-
 
 function shareDailyResult() {
     if (gameMode !== 'daily' || isGameOver === false) return; 
