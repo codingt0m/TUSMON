@@ -54,6 +54,7 @@ const resultImg = document.getElementById('pokemon-result-image'); // Image rés
 
 const restartBtn = document.getElementById('restart-btn');
 const giveupBtn = document.getElementById('giveup-btn');
+const validateBtn = document.getElementById('validate-btn'); // NOUVEAU : Référence au bouton valider
 const menuReturnBtn = document.getElementById('menu-return-btn');
 const btnDailyStart = document.getElementById('btn-daily-start');
 
@@ -687,6 +688,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
     restartBtn.style.display = "none";
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
+    validateBtn.style.display = "inline-block"; // AFFICHER LE BOUTON VALIDER
     
     valGen.classList.remove('revealed');
     hintStage.classList.remove('visible');
@@ -724,6 +726,9 @@ function setupGameUI(isResuming = false, gameData = {}) {
     targetWord = targetPokemon.normalized;
     wordLength = targetWord.length;
     
+    // ON FIXE LA LONGUEUR MINIMALE POUR NE PAS EFFACER LA PREMIERE LETTRE
+    fixedLength = 1; 
+
     knownLetters = new Array(wordLength).fill(null);
     knownLetters[0] = targetWord[0]; 
     for (let i = 0; i < wordLength; i++) {
@@ -1178,6 +1183,9 @@ function endGame(isVictory, isShiny = false) {
     isGameOver = true;
     
     keyboardCont.style.display = 'none';
+    
+    // NOUVEAU : On cache le bouton valider
+    if (validateBtn) validateBtn.style.display = 'none';
     
     if (targetPokemon && targetPokemon.id) {
         const type = isShiny ? 'shiny' : 'regular';
