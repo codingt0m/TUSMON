@@ -81,10 +81,16 @@ const keyboardLayout = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"];
 // --- GESTION SAUVEGARDE ET FERMETURE ---
 
 // Sauvegarder l'état actuel (appelé quand on quitte ou à chaque action importante)
+
 function saveDailyState() {
     if (gameMode !== 'daily' || !targetPokemon) return;
 
     const todayKey = getTodayDateKey();
+    
+    // CORRECTION : On détermine la victoire en vérifiant si le dernier mot joué est le bon.
+    // Cela fonctionne peu importe le message affiché ("Bravo", "ONE SHOT", etc.)
+    const lastGuess = savedGuesses.length > 0 ? savedGuesses[savedGuesses.length - 1] : "";
+    const hasWon = (lastGuess === targetPokemon.normalized);
     
     // Construction de l'objet de sauvegarde
     const gameState = {
@@ -94,8 +100,8 @@ function saveDailyState() {
         currentGuess: currentGuess, // Le mot en cours de frappe
         grid: savedGrid,
         guesses: savedGuesses,
-        won: isGameOver && messageEl.textContent.includes("Bravo"), // Simplifié
-        attempts: currentRow + (isGameOver && messageEl.textContent.includes("Bravo") ? 0 : 0) // Ajusté à la fin
+        won: isGameOver && hasWon, // Condition beaucoup plus solide
+        attempts: currentRow 
     };
 
     if (isGameOver) {
