@@ -647,13 +647,24 @@ function pickRandomPokemon() {
 
 function getDailyPokemonIndex(listLength) {
     const dateStr = getTodayDateKey();
+    
+    // 1. Hachage initial de la date (identique à avant)
     let hash = 0;
     for (let i = 0; i < dateStr.length; i++) {
         hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
         hash |= 0; 
     }
-    hash = Math.abs((hash * 1664525) + 1013904223);
-    return hash % listLength;
+
+    // 2. CORRECTION : Mélangeur "SplitMix32"
+    // Cette méthode garantit une bien meilleure distribution aléatoire
+    // et évite les cycles courts ou les motifs linéaires.
+    let z = (hash + 0x9E3779B9) | 0;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+    z = z ^ (z >>> 16);
+
+    // 3. Retourne un index positif valide
+    return (z >>> 0) % listLength;
 }
 
 function restartCurrentMode() {
