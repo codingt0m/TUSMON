@@ -1531,3 +1531,123 @@ function shareDailyResult() {
     
     window.open(twitterUrl, 'ShareOnTwitter', 'width=550,height=700,scrollbars=yes,resizable=yes,toolbar=no,location=no,menubar=no');
 }
+
+// --- LOGIQUE CLASSEMENT HEBDOMADAIRE ---
+
+// 1. Calculer la clé de la semaine (Ex: "2023-10-23" pour le lundi de la semaine)
+function getCurrentWeekKey() {
+    const d = new Date();
+    const day = d.getDay(); // 0 (Dimanche) à 6 (Samedi)
+    // On veut que la semaine commence le Lundi.
+    // Si on est dimanche (0), on recule de 6 jours. Sinon on recule de (jour - 1).
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    
+    const monday = new Date(d.setDate(diff));
+    // Format YYYY-MM-DD
+    return monday.toISOString().split('T')[0];
+}
+
+// 2. Charger le classement hebdo
+function loadWeeklyLeaderboard() {
+    if (!db) return;
+
+    const weeklyContainer = document.getElementById('weekly-leaderboard-container');
+    const weeklyDateLabel = document.getElementById('weekly-date');
+    const weekKey = getCurrentWeekKey();
+
+    // Afficher la date de la semaine
+    if (weeklyDateLabel) {
+        const d = new Date(weekKey);
+        const options = { day: 'numeric', month: 'short' };
+        weeklyDateLabel.textContent = "Semaine du " + d.toLocaleDateString('fr-FR', options);
+    }
+
+    db.collection('weekly_streaks').doc(weekKey).collection('players')
+        .orderBy('streak', 'desc') // On trie par plus grosse série
+        .orderBy('timestamp', 'asc') // En cas d'égalité, le premier l'emporte
+        .limit(5)
+        .get()
+        .then((querySnapshot) => {
+            if (querySnapshot.empty) {
+                weeklyContainer.innerHTML = '<p style="text-align:center; color:#888; font-style:italic; font-size:0.8rem;">Aucune série cette semaine.</p>';
+                return;
+            }
+
+            let html = '<table>';
+            let rank = 1;
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                // Couleur : Or pour la série
+                const color = '#f0b230'; 
+                const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
+                
+                const imgHtml = data.photoURL 
+                    ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
+                    : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
+                
+                // Petite flamme pour le premier
+                let iconHtml = rank === 1 ? '<span class="crown-emoji">🔥</span>' : '';
+                
+                let userLink = data.handle || 'Anonyme';
+                if (data.handle && data.handle.startsWith('@')) {
+                    userLink = data.handle; // On garde simple pour l'affichage
+                }
+
+                html += `<tr style="${styles}">
+                            <td style="width:20px;">#${rank}</td>
+                            <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${iconHtml}</div><span>${userLink}</span></div></td>
+                            <td style="text-align:right; color:${color}; font-weight:bold;">${data.streak}</td>
+                         </tr>`;
+                rank++;
+            });
+            html += '</table>';
+            weeklyContainer.innerHTML = html;
+        })
+        .catch((error) => {
+            console.error("Erreur classement hebdo:", error);
+            weeklyContainer.innerHTML = '<p style="text-align:center; color:#d9534f;">Erreur...</p>';
+        });
+}
+
+// 3. Sauvegarder le score Hebdo (Uniquement si c'est le meilleur score de la semaine)
+function checkAndSaveWeeklyStreak(streakScore) {
+    if (!currentUser || !db) return;
+    
+    // On ne sauvegarde pas les scores de 0
+    if (streakScore <= 0) return;
+
+    const weekKey = getCurrentWeekKey();
+    const userRef = db.collection('weekly_streaks').doc(weekKey).collection('players').doc(currentUser.uid);
+
+    // On utilise une transaction pour lire puis écrire de manière sûre
+    db.runTransaction((transaction) => {
+        return transaction.get(userRef).then((doc) => {
+            if (!doc.exists) {
+                // Pas encore de score cette semaine, on crée
+                transaction.set(userRef, {
+                    handle: currentUser.displayName || "Joueur",
+                    photoURL: currentUser.photoURL || null,
+                    streak: streakScore,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                const data = doc.data();
+                const currentBest = data.streak || 0;
+                // Si le nouveau score est meilleur, on met à jour
+                if (streakScore > currentBest) {
+                    transaction.update(userRef, {
+                        streak: streakScore,
+                        handle: currentUser.displayName || "Joueur", // Mise à jour du pseudo au cas où
+                        photoURL: currentUser.photoURL || null,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }
+        });
+    }).then(() => {
+        console.log("Score hebdo vérifié/mis à jour.");
+        loadWeeklyLeaderboard(); // Rafraîchir l'affichage
+    }).catch((err) => {
+        console.error("Erreur sauvegarde hebdo:", err);
+    });
+}

@@ -391,3 +391,28 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
 }
 .admin-popup-card { max-width: 400px !important; }
 .menu-section-inner { display: flex; flex-direction: column; gap: 10px; }
+
+/* DANS index.css (à la fin du fichier) */
+
+.leaderboard-separator {
+    height: 1px;
+    background-color: #333;
+    margin: 15px 0;
+    width: 100%;
+}
+
+/* On s'assure que le tableau hebdo ressemble au quotidien */
+#weekly-leaderboard-container table {
+    width: 100%;
+    font-size: 0.9rem;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+#weekly-leaderboard-container td {
+    padding: 6px 4px;
+    border-bottom: 1px solid #333;
+    vertical-align: middle; 
+}
+
+#weekly-leaderboard-container tr:last-child td { border-bottom: none; }
