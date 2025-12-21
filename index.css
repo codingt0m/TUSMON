@@ -29,7 +29,7 @@ body {
 }
 
 h1 { 
-    margin: 10px 0;
+    margin: 10px 0 20px 0;
     letter-spacing: 2px;
     font-size: 2.5rem;
     color: var(--correct);
@@ -41,97 +41,84 @@ h1 {
 }
 
 h1:active { transform: scale(0.95); }
-
 h1 .white-text { color: #ffffff; }
 
-/* --- ANIMATION FLAMMES & EMOJIS --- */
-.falling-item {
-    position: fixed;
-    top: -50px;
-    z-index: 9999;
-    user-select: none;
-    pointer-events: none;
-    animation: fall linear forwards;
-}
-
-.falling-pokeball {
-    width: 40px;
-    height: 40px;
-    background-size: contain;
-    background-repeat: no-repeat;
-}
-
-@keyframes fall {
-    to {
-        transform: translate(var(--fall-x, 0px), 110vh) rotate(360deg);
-    }
-}
-
-/* --- POPUP GENERATION --- */
-#gen-popup {
-    position: fixed;
-    display: none;
-    z-index: 10000;
-    background-color: #000;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    padding: 5px;
-    pointer-events: none; 
-    box-shadow: 0 4px 25px rgba(0,0,0,0.9);
-    max-width: 450px; 
-}
-
-#gen-popup img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 4px;
-}
-
-/* --- IMAGE RESULTAT FIN DE PARTIE --- */
-#pokemon-result-image {
-    width: 150px;
-    height: 150px;
-    margin: 10px auto;
-    object-fit: contain;
-    display: none; 
-    animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* --- STYLE COMMUN CARTE MENU (Utilisé pour Menu & Admin) --- */
-.menu-card {
-    display: flex;
-    flex-direction: column;
+/* --- NOUVELLE LAYOUT 3 COLONNES --- */
+#menu-screen.menu-layout {
+    display: flex; /* Géré par JS (flex/none) */
+    flex-direction: column; /* Mobile par défaut */
     align-items: center;
     width: 100%;
-    max-width: 400px;
+    max-width: 1200px;
     gap: 20px;
-    padding: 20px;
+}
+
+/* Style de base des cartes (utilisé partout) */
+.menu-card {
     background-color: #1e1e1e;
     border-radius: 10px;
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    position: relative;
-    box-sizing: border-box; /* Important pour le padding */
-}
-
-/* --- MENU D'ACCUEIL (Spécifique) --- */
-#menu-screen {
-    display: none; /* Géré par JS (flex/none) */
-    /* Les styles visuels sont maintenant dans .menu-card via HTML */
-}
-
-.menu-section {
+    padding: 20px;
+    box-sizing: border-box;
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 15px;
-    background-color: #2a2a2a;
-    border-radius: 8px;
-    box-sizing: border-box;
+    gap: 15px;
 }
 
+/* SUR ORDINATEUR (Largeur > 900px) */
+@media (min-width: 900px) {
+    #menu-screen.menu-layout {
+        flex-direction: row; /* On passe en ligne */
+        align-items: flex-start; /* Tout aligné en haut */
+        justify-content: center;
+    }
+
+    .menu-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Colonnes latérales (Leaderboard et Admin) */
+    .side-column {
+        flex: 1;
+        max-width: 300px;
+        min-width: 250px;
+    }
+
+    /* Colonne centrale (Jeu) plus large */
+    .center-column {
+        flex: 1.5;
+        max-width: 450px;
+    }
+}
+
+/* SUR MOBILE (Ordre d'affichage) */
+@media (max-width: 899px) {
+    .menu-column {
+        width: 100%;
+        max-width: 450px;
+    }
+
+    /* On veut que le jeu soit en PREMIER sur mobile */
+    .center-column { order: 1; }
+    /* Le classement en dessous */
+    .side-column:first-of-type { order: 2; }
+    /* L'admin tout en bas */
+    .side-column:last-of-type { order: 3; }
+}
+
+/* Ancienne classe .menu-section pour compatibilité interne si besoin,
+   mais maintenant on utilise directement le style de la carte */
+.menu-section-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* --- LEADERBOARD & AUTH --- */
 .menu-title {
     font-size: 1.2rem;
     font-weight: bold;
@@ -140,60 +127,6 @@ h1 .white-text { color: #ffffff; }
     color: #ddd;
 }
 
-/* LEADERBOARD DÉPORTÉ PC */
-@media (min-width: 1100px) {
-    #leaderboard-section {
-        position: absolute !important;
-        top: -1px; 
-        left: auto;
-        right: 100%; 
-        margin-right: 20px; 
-        width: 300px;
-        z-index: 100;
-        border: 1px solid var(--border);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        background-color: #1e1e1e;
-        border-radius: 10px;
-    }
-}
-
-#gen-filters {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.gen-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: #333;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    user-select: none;
-}
-
-.gen-checkbox:hover { background: #444; }
-.gen-checkbox input { accent-color: var(--correct); }
-
-.mini-btn {
-    background-color: var(--border);
-    color: #ddd;
-    border: none;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    margin-bottom: 5px;
-    align-self: center;
-}
-.mini-btn:hover { background-color: #555; }
-
-/* --- LEADERBOARD & AUTH --- */
 #auth-section {
     text-align: center;
     margin-bottom: 10px;
@@ -239,36 +172,88 @@ h1 .white-text { color: #ffffff; }
     vertical-align: middle; 
 }
 
-.profile-pic {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
+.profile-pic { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.profile-pic-wrapper { position: relative; width: 24px; height: 24px; margin-right: 8px; }
+.crown-emoji { position: absolute; top: -16px; left: 10px; font-size: 1.08rem; z-index: 10; pointer-events: none; transform: rotate(25deg); }
+.user-cell { display: flex; align-items: center; }
+#leaderboard-container tr:last-child td { border-bottom: none; }
+
+/* FILTRES GEN */
+#gen-filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
-.profile-pic-wrapper {
-    position: relative;
-    width: 24px; 
-    height: 24px;
-    margin-right: 8px; 
-}
-
-.crown-emoji {
-    position: absolute;
-    top: -16px; 
-    left: 10px; 
-    font-size: 1.08rem; 
-    z-index: 10; 
-    pointer-events: none; 
-    transform: rotate(25deg); 
-}
-
-.user-cell {
+.gen-checkbox {
     display: flex;
     align-items: center;
+    gap: 5px;
+    background: #333;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+}
+.gen-checkbox:hover { background: #444; }
+.gen-checkbox input { accent-color: var(--correct); }
+
+.mini-btn {
+    background-color: var(--border);
+    color: #ddd;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+    align-self: center;
+}
+.mini-btn:hover { background-color: #555; }
+
+/* --- ANIMATION FLAMMES & EMOJIS --- */
+.falling-item {
+    position: fixed;
+    top: -50px;
+    z-index: 9999;
+    user-select: none;
+    pointer-events: none;
+    animation: fall linear forwards;
 }
 
-#leaderboard-container tr:last-child td { border-bottom: none; }
+.falling-pokeball { width: 40px; height: 40px; background-size: contain; background-repeat: no-repeat; }
+
+@keyframes fall {
+    to { transform: translate(var(--fall-x, 0px), 110vh) rotate(360deg); }
+}
+
+/* --- POPUP GENERATION --- */
+#gen-popup {
+    position: fixed;
+    display: none;
+    z-index: 10000;
+    background-color: #000;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 5px;
+    pointer-events: none; 
+    box-shadow: 0 4px 25px rgba(0,0,0,0.9);
+    max-width: 450px; 
+}
+#gen-popup img { width: 100%; height: auto; display: block; border-radius: 4px; }
+
+/* --- IMAGE RESULTAT FIN DE PARTIE --- */
+#pokemon-result-image {
+    width: 150px;
+    height: 150px;
+    margin: 10px auto;
+    object-fit: contain;
+    display: none; 
+    animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
 
 /* --- JEU --- */
 #game-area { 
@@ -299,7 +284,6 @@ h1 .white-text { color: #ffffff; }
     text-transform: uppercase;
     letter-spacing: 1px;
 }
-
 #mode-badge.classic { background-color: var(--btn-neutral); }
 
 #hint-box {
@@ -322,15 +306,10 @@ h1 .white-text { color: #ffffff; }
     display: none;
     cursor: help; 
 }
-
 .hint-tag.visible { opacity: 1; transform: translateY(0); display: block; }
 .hint-label { color: #aaa; margin-right: 5px; }
 .hint-value { font-weight: bold; color: #fff; text-transform: uppercase; }
-
-.hint-value.revealed {
-    color: #fff; 
-    animation: pop 0.3s ease;
-}
+.hint-value.revealed { color: #fff; animation: pop 0.3s ease; }
 @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
 
 /* GRILLE */
@@ -358,25 +337,14 @@ h1 .white-text { color: #ffffff; }
     color: #fff;
     user-select: none;
 }
-
 .tile.active { border-color: #878a8c; }
 .tile.correct { background-color: var(--correct); border-color: var(--correct); }
 .tile.present { background-color: var(--present); border-color: var(--present); }
 .tile.absent { background-color: var(--absent); border-color: var(--absent); }
-
 .tile.flip { animation: flip 0.5s ease forwards; }
-@keyframes flip {
-    0% { transform: rotateX(0); }
-    50% { transform: rotateX(90deg); }
-    100% { transform: rotateX(0); }
-}
-
+@keyframes flip { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
 .tile.shake { animation: shake 0.5s; border-color: #ff4444; }
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-    20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
+@keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
 
 /* CLAVIER */
 #keyboard-cont {
@@ -387,35 +355,14 @@ h1 .white-text { color: #ffffff; }
     gap: 6px;
     margin-top: 5px;
 }
-
-.keyboard-row {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    gap: 4px;
-}
-
+.keyboard-row { display: flex; justify-content: center; width: 100%; gap: 4px; }
 .keyboard-button {
-    font-family: inherit;
-    font-weight: bold;
-    border: 0;
-    padding: 0;
-    margin: 0;
-    height: 45px;
-    border-radius: 4px;
-    cursor: pointer;
-    user-select: none;
-    background-color: var(--key-bg);
-    color: white;
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-    max-width: 40px;
+    font-family: inherit; font-weight: bold; border: 0; padding: 0; margin: 0;
+    height: 45px; border-radius: 4px; cursor: pointer; user-select: none;
+    background-color: var(--key-bg); color: white; flex: 1;
+    display: flex; justify-content: center; align-items: center;
+    text-transform: uppercase; font-size: 0.9rem; max-width: 40px;
 }
-
 .keyboard-button.wide { flex: 1.5; font-size: 0.75rem; max-width: 60px; }
 .keyboard-button.btn-enter { background-color: #538d4e; } 
 .keyboard-button.btn-back { background-color: #d9534f; } 
@@ -425,83 +372,45 @@ h1 .white-text { color: #ffffff; }
 .keyboard-button.absent { background-color: #3a3a3c; }
 
 #message {
-    margin-top: 5px;
-    font-weight: bold;
-    padding: 5px;
-    border-radius: 5px;
-    text-align: center;
-    min-height: 20px;
-    white-space: pre-wrap;
+    margin-top: 5px; font-weight: bold; padding: 5px; border-radius: 5px;
+    text-align: center; min-height: 20px; white-space: pre-wrap;
 }
 
 /* BOUTONS */
 #controls {
-    display: flex;
-    flex-direction: column; 
-    gap: 10px;
-    margin-top: 10px;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
+    display: flex; flex-direction: column; gap: 10px; margin-top: 10px;
+    justify-content: center; align-items: center; width: 100%;
 }
-
-.controls-row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-}
+.controls-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
 
 button.action-btn, button.menu-btn {
-    padding: 10px 20px;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: bold;
-    transition: transform 0.1s;
+    padding: 10px 20px; color: white; border: none; border-radius: 5px;
+    cursor: pointer; font-size: 1rem; font-weight: bold; transition: transform 0.1s;
 }
-
 button.action-btn:active, button.menu-btn:active { transform: scale(0.95); }
 
 .menu-btn.daily { background-color: var(--correct); width: 100%; }
 .menu-btn.random { background-color: var(--btn-primary); width: 100%; }
 
-button:disabled {
-    background-color: var(--btn-disabled) !important;
-    cursor: not-allowed;
-    opacity: 0.7;
-}
-
-#share-btn { 
-    background-color: #1DA1F2; 
-    display: none; 
-}
-
+button:disabled { background-color: var(--btn-disabled) !important; cursor: not-allowed; opacity: 0.7; }
+#share-btn { background-color: #1DA1F2; display: none; }
 #validate-btn { background-color: #538d4e; }
 #restart-btn { background-color: var(--btn-primary); display: none; }
-#skip-btn { background-color: var(--btn-neutral); display: none; }
 #giveup-btn { background-color: var(--btn-danger); display: none; }
 #menu-return-btn { background-color: var(--absent); display: none; }
-
 #status-area { color: #888; font-style: italic; margin-top: 20px; }
 
 .menu-btn.admin-btn {
-    background-color: #2c2c2e;
-    border: 1px solid #ffd700; 
-    color: #ffd700;
+    background-color: #2c2c2e; border: 1px solid #ffd700; color: #ffd700; width: 100%;
 }
-
 .menu-btn.admin-btn:hover { background-color: #444; }
 
-/* --- ÉCRAN PANEL ADMIN (Mise à jour) --- */
+/* --- ÉCRAN PANEL ADMIN (Overlay) --- */
 #admin-screen {
     display: none;
     flex-direction: column;
     align-items: center;
-    justify-content: center; /* CENTRE VERTICALEMENT */
+    justify-content: center; 
     width: 100%;
     height: 100vh;
     background-color: var(--bg);
@@ -509,5 +418,9 @@ button:disabled {
     top: 0;
     left: 0;
     z-index: 2000;
-    /* Plus de padding-top pour éviter le décalage */
+}
+
+/* Style spécifique pour la carte dans l'overlay admin */
+.admin-popup-card {
+    max-width: 400px !important;
 }

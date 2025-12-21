@@ -14,44 +14,65 @@
 
     <div id="status-area">Chargement du Pokédex...</div>
 
-    <div id="menu-screen" class="menu-card">
-        <div class="menu-section">
-            <div class="menu-title">Défi Quotidien</div>
-            <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
-            <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
+    <div id="menu-screen" class="menu-layout">
+        
+        <div class="menu-column side-column">
+            <div id="leaderboard-section" class="menu-card">
+                <div class="menu-title">Classement du Jour 🏆</div>
+                <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
+                
+                <div id="auth-section" style="text-align: center; margin-bottom: 10px;">
+                    <button id="btn-twitter-login" class="menu-btn" style="background-color: #1DA1F2; margin-top:5px; color: white;">
+                        Se connecter avec Twitter
+                    </button>
+                    <p id="user-info" style="color: #aaa; font-size: 0.8rem; display:none;"></p>
+                </div>
+
+                <div id="leaderboard-container">
+                    <p style="text-align:center; color:#666; font-size:0.8rem;">Chargement...</p>
+                </div>
+            </div>
         </div>
 
-        <div id="admin-section" class="menu-section" style="display:none;">
-            <button id="btn-admin-panel" class="menu-btn admin-btn" onclick="showAdminPanel()">PANEL ADMIN 🛠️</button>
-        </div>
-
-        <div class="menu-section" id="leaderboard-section">
-            <div class="menu-title">Classement du Jour 🏆</div>
-            <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
+        <div class="menu-column center-column">
             
-            <div id="auth-section" style="text-align: center; margin-bottom: 10px;">
-                <button id="btn-twitter-login" class="menu-btn" style="background-color: #1DA1F2; margin-top:5px; color: white;">
-                    Se connecter avec Twitter
-                </button>
-                <p id="user-info" style="color: #aaa; font-size: 0.8rem; display:none;"></p>
+            <div class="menu-card">
+                <div class="menu-section-inner">
+                    <div class="menu-title">Défi Quotidien</div>
+                    <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
+                    <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
+                </div>
             </div>
 
-            <div id="leaderboard-container" style="background: #222; padding: 10px; border-radius: 5px; min-height: 100px;">
-                <p style="text-align:center; color:#666; font-size:0.8rem;">Chargement...</p>
+            <div class="menu-card" style="margin-top: 20px;">
+                <div class="menu-section-inner">
+                    <div class="menu-title">Mode Aléatoire</div>
+                    <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
+                    
+                    <div style="text-align: center;">
+                        <button class="mini-btn" onclick="selectAllGens()">Tout cocher</button>
+                    </div>
+
+                    <div id="gen-filters"></div>
+                    <button class="menu-btn random" onclick="startRandomGame()">JOUER EN ALÉATOIRE</button>
+                </div>
             </div>
         </div>
 
-        <div class="menu-section">
-            <div class="menu-title">Mode Aléatoire</div>
-            <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
+        <div class="menu-column side-column">
             
-            <div style="text-align: center;">
-                <button class="mini-btn" onclick="selectAllGens()">Tout cocher</button>
+            <div id="admin-section" class="menu-card" style="display:none; border-color: #ffd700;">
+                <div class="menu-section-inner">
+                    <div class="menu-title" style="color: #ffd700;">Administration</div>
+                    <p style="text-align:center; color:#aaa; font-size:0.8rem; margin-bottom:10px;">Gestion du jeu et des scores.</p>
+                    <button id="btn-admin-panel" class="menu-btn admin-btn" onclick="showAdminPanel()">OUVRIR LE PANEL 🛠️</button>
+                </div>
             </div>
 
-            <div id="gen-filters"></div>
-            <button class="menu-btn random" onclick="startRandomGame()">JOUER EN ALÉATOIRE</button>
+            <div class="placeholder-box" style="opacity:0;"></div>
+
         </div>
+
     </div>
 
     <div id="gen-popup">
@@ -99,7 +120,7 @@
             <span style="display:block; font-size: 1rem; color: #888; letter-spacing: 5px; margin-top: -5px; text-transform: uppercase;">ADMINISTRATION</span>
         </h1>
 
-        <div class="menu-card">
+        <div class="menu-card admin-popup-card">
             
             <div class="menu-section">
                 <div class="menu-title">Connexion</div>
