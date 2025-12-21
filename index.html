@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUSMON</title>
     <link rel="icon" href="./ressources/favicon.ico" type="image/x-icon">
+    
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
@@ -14,7 +15,6 @@
     <div id="status-area">Chargement du Pokédex...</div>
 
     <div id="menu-screen">
-        
         <div id="menu-layout-grid">
             
             <div class="layout-column col-left">
@@ -23,10 +23,10 @@
                     <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
                     
                     <div id="auth-section">
-                        <button id="btn-twitter-login" class="menu-btn" style="background-color: #1DA1F2; margin-top:5px; color: white;">
+                        <button id="btn-twitter-login" class="menu-btn">
                             Se connecter avec Twitter
                         </button>
-                        <p id="user-info" style="color: #aaa; font-size: 0.8rem; display:none;"></p>
+                        <p id="user-info" style="display:none;"></p>
                     </div>
 
                     <div id="leaderboard-container">
@@ -38,32 +38,50 @@
             <div class="layout-column col-center">
                 
                 <div class="menu-card">
-                    <div class="menu-title">Défi Quotidien</div>
-                    <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
-                    <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
+                    <div class="menu-section-inner">
+                        <div class="menu-title">Défi Quotidien</div>
+                        <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Le même Pokémon pour tout le monde !</p>
+                        <button id="btn-daily-start" class="menu-btn daily" onclick="startDailyGame()">JOUER AU POKÉMON DU JOUR</button>
+                    </div>
                 </div>
 
                 <div class="menu-card">
-                    <div class="menu-title">Mode Aléatoire</div>
-                    <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
-                    
-                    <div style="text-align: center;">
-                        <button class="mini-btn" onclick="selectAllGens()">Tout cocher</button>
-                    </div>
+                    <div class="menu-section-inner">
+                        <div class="menu-title">Mode Série</div>
+                        <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Enchaîne les victoires sans perdre !</p>
+                        
+                        <div style="display:flex; justify-content:center; margin-bottom:5px;">
+                            <span id="streak-counter" style="display:none;">Série actuelle : 0</span>
+                        </div>
 
-                    <div id="gen-filters"></div>
-                    <button class="menu-btn random" onclick="startRandomGame()">JOUER EN ALÉATOIRE</button>
+                        <button id="btn-streak-start" class="menu-btn streak" onclick="startStreakGame()">DÉMARRER LA SÉRIE</button>
+                    </div>
                 </div>
+
+                <div class="menu-card">
+                    <div class="menu-section-inner">
+                        <div class="menu-title">Mode Aléatoire</div>
+                        <p style="text-align:center; margin:0 0 10px; color:#aaa; font-size:0.9rem;">Sélectionnez les générations :</p>
+                        
+                        <div style="text-align: center;">
+                            <button class="mini-btn" onclick="selectAllGens()">Tout cocher</button>
+                        </div>
+
+                        <div id="gen-filters"></div>
+                        <button class="menu-btn random" onclick="startRandomGame()">JOUER EN ALÉATOIRE</button>
+                    </div>
+                </div>
+
             </div>
 
             <div class="layout-column col-right">
-                
                 <div id="admin-section" class="menu-card admin-highlight" style="display:none;">
-                    <div class="menu-title" style="color: #ffd700;">Administration</div>
-                    <p style="text-align:center; color:#aaa; font-size:0.8rem; margin-bottom:10px;">Gestion du jeu et des scores.</p>
-                    <button id="btn-admin-panel" class="menu-btn admin-btn" onclick="showAdminPanel()">PANEL ADMIN 🛠️</button>
+                    <div class="menu-section-inner">
+                        <div class="menu-title" style="color: #ffd700;">Administration</div>
+                        <p style="text-align:center; color:#aaa; font-size:0.8rem; margin-bottom:10px;">Gestion du jeu et des scores.</p>
+                        <button id="btn-admin-panel" class="menu-btn admin-btn" onclick="showAdminPanel()">OUVRIR LE PANEL 🛠️</button>
+                    </div>
                 </div>
-
             </div>
 
         </div>
@@ -86,8 +104,11 @@
         </div>
 
         <div id="board"></div>
+        
         <img id="pokemon-result-image" src="" alt="Pokémon">
+        
         <div id="message"></div>
+        
         <div id="keyboard-cont"></div>
         
         <div id="controls">
@@ -95,8 +116,12 @@
                 <button id="menu-return-btn" class="action-btn" onclick="showMenu()">Menu</button>
                 <button id="validate-btn" class="action-btn" onclick="checkGuess()">Valider</button>
                 <button id="share-btn" class="action-btn" onclick="shareDailyResult()">Partager sur Twitter</button>
+                
+                <button id="next-streak-btn" class="action-btn" onclick="nextStreakLevel()" style="display:none;">Pokémon Suivant ➡</button>
+                
                 <button id="restart-btn" class="action-btn" onclick="restartCurrentMode()">Rejouer</button>
             </div>
+
             <div class="controls-row secondary">
                 <button id="giveup-btn" class="action-btn" onclick="giveUp()">Abandonner</button>
             </div>
@@ -110,14 +135,15 @@
         </h1>
 
         <div class="menu-card admin-popup-card">
-            <div class="menu-section-inner">
+            <div class="menu-section">
                 <div class="menu-title">Connexion</div>
                 <p style="text-align:center; color:#ddd; margin:0;">
                     Connecté en tant que :<br> 
                     <strong style="color:var(--correct); font-size:1.1rem;">@suedlemot</strong>
                 </p>
             </div>
-            <div class="menu-section-inner">
+
+            <div class="menu-section">
                 <div class="menu-title">Outils de Gestion</div>
                 <p style="text-align:center; font-size:0.85rem; color:#aaa; font-style:italic; margin-bottom:10px;">
                     Fonctionnalités en cours de développement
@@ -125,8 +151,12 @@
                 <button class="mini-btn" disabled style="width:100%; padding:10px; background-color:#333; color:#666; cursor:not-allowed;">
                     Réinitialiser le Jour
                 </button>
+                <button class="mini-btn" disabled style="width:100%; padding:10px; margin-top:5px; background-color:#333; color:#666; cursor:not-allowed;">
+                    Gérer les Utilisateurs
+                </button>
             </div>
-            <div class="menu-section-inner">
+
+            <div class="menu-section">
                 <button class="action-btn" onclick="closeAdminPanel()" style="width:100%; background-color: var(--btn-neutral);">
                     RETOUR AU MENU PRINCIPAL
                 </button>
@@ -137,6 +167,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
     <script src="config.js"></script>
     <script src="script.js"></script>
 

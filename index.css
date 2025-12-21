@@ -1,17 +1,31 @@
 :root {
+    /* Couleurs du jeu */
     --correct: #e7002a;
     --present: #f0b230;
     --absent: #787c7e;
+    
+    /* Couleurs de fond et texte */
     --bg: #121213;
     --text: #ffffff;
     --border: #3a3a3c;
     --tile-bg: #222;
     --key-bg: #818384;
     --hint-bg: #2c2c2e;
+    
+    /* Boutons */
     --btn-primary: #538d4e;
     --btn-danger: #d9534f;
     --btn-neutral: #787c7e;
     --btn-disabled: #3a3a3c;
+
+    /* Variables par défaut (évite les bugs si JS tarde à charger) */
+    --cols: 5;
+    --fall-x: 0px;
+}
+
+/* Reset global pour éviter les soucis de dimensionnement */
+* {
+    box-sizing: border-box;
 }
 
 body {
@@ -49,6 +63,7 @@ h1 .white-text { color: #ffffff; }
     max-width: 1200px; /* Largeur max pour que ça ne s'étale pas trop sur grands écrans */
     display: flex;     /* Par défaut (géré par le script show/hide) */
     justify-content: center;
+    margin: 0 auto;
 }
 
 /* La grille interne */
@@ -67,7 +82,6 @@ h1 .white-text { color: #ffffff; }
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     padding: 20px;
-    box-sizing: border-box;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -111,7 +125,7 @@ h1 .white-text { color: #ffffff; }
         max-width: 500px; /* Limite la largeur sur tablette */
     }
 
-    /* On force l'ordre d'affichage sur mobile */
+    /* On force l'ordre d'affichage sur mobile avec Flexbox Order */
     .col-center { order: 1; } /* Jeu en premier */
     .col-left { order: 2; }   /* Classement en deuxième */
     .col-right { order: 3; }  /* Admin en dernier */
@@ -198,7 +212,7 @@ h1 .white-text { color: #ffffff; }
     user-select: none;
 }
 .gen-checkbox:hover { background: #444; }
-.gen-checkbox input { accent-color: var(--correct); }
+.gen-checkbox input { accent-color: var(--correct); cursor: pointer; }
 
 .mini-btn {
     background-color: var(--border);
@@ -215,7 +229,12 @@ h1 .white-text { color: #ffffff; }
 
 /* --- ANIMATIONS & POPUP --- */
 .falling-item {
-    position: fixed; top: -50px; z-index: 9999; user-select: none; pointer-events: none; animation: fall linear forwards;
+    position: fixed; 
+    top: -50px; 
+    z-index: 9999; 
+    user-select: none; 
+    pointer-events: none; 
+    animation: fall linear forwards;
 }
 .falling-pokeball { width: 40px; height: 40px; background-size: contain; background-repeat: no-repeat; }
 @keyframes fall { to { transform: translate(var(--fall-x, 0px), 110vh) rotate(360deg); } }
@@ -258,14 +277,27 @@ h1 .white-text { color: #ffffff; }
 
 /* GRILLE & CLAVIER */
 #board {
-    display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 2px;
-    margin: 0 auto 10px auto; width: fit-content; max-width: min(350px, calc(var(--cols) * 55px)); 
+    display: grid; 
+    grid-template-columns: repeat(var(--cols, 5), 1fr); 
+    gap: 2px;
+    margin: 0 auto 10px auto; 
+    width: fit-content; 
+    /* Calcul sécurisé pour la largeur */
+    max-width: min(350px, calc(var(--cols, 5) * 55px)); 
     justify-content: center;
 }
 .tile {
-    aspect-ratio: 1 / 1; border: 2px solid var(--border); background-color: var(--tile-bg);
-    display: flex; justify-content: center; align-items: center; font-size: 1.5rem;
-    font-weight: bold; text-transform: uppercase; box-sizing: border-box; color: #fff; user-select: none;
+    aspect-ratio: 1 / 1; 
+    border: 2px solid var(--border); 
+    background-color: var(--tile-bg);
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-size: 1.5rem;
+    font-weight: bold; 
+    text-transform: uppercase; 
+    color: #fff; 
+    user-select: none;
 }
 .tile.active { border-color: #878a8c; }
 .tile.correct { background-color: var(--correct); border-color: var(--correct); }
@@ -324,6 +356,33 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
     background-color: #2c2c2e; border: 1px solid #ffd700; color: #ffd700; width: 100%;
 }
 .menu-btn.admin-btn:hover { background-color: #444; }
+
+/* --- MODE STREAK --- */
+.menu-btn.streak {
+    background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045); /* Un dégradé "feu" */
+    color: white;
+    width: 100%;
+}
+
+#streak-counter {
+    background-color: #333;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #f0b230; /* Jaune doré */
+    border: 1px solid #555;
+    animation: pop 0.5s ease;
+}
+
+#next-streak-btn {
+    background-color: #f0b230 !important;
+    color: #000 !important;
+    font-weight: 800;
+}
+#next-streak-btn:hover {
+    background-color: #ffca58 !important;
+}
 
 /* --- ÉCRAN PANEL ADMIN (Overlay) --- */
 #admin-screen {

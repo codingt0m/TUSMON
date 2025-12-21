@@ -26,16 +26,17 @@ let currentGuess = "";
 let currentRow = 0;
 let isGameOver = false;
 let isProcessing = false;
-let gameMode = 'daily'; 
+let gameMode = 'daily'; // 'daily', 'classic', 'streak'
+let currentStreak = 0; // Score de chaîne
 let knownLetters = []; 
 let fixedLength = 0; 
 let activeFilters = []; 
 let allGenerations = []; 
-let lastPlayedId = null; // Variable pour stocker le dernier Pokémon joué (anti-doublon en aléatoire)
+let lastPlayedId = null; 
 
 // Variables pour la persistance de l'état (Sauvegarde)
-let savedGrid = [];     // Stocke les emojis des lignes validées
-let savedGuesses = [];  // Stocke les mots des lignes validées
+let savedGrid = [];     
+let savedGuesses = [];  
 
 // Variable pour l'Easter Egg
 let logoClickCount = 0;
@@ -43,26 +44,33 @@ let logoClickCount = 0;
 const maxGuesses = 6;
 let wordLength = 0;
 
-// Elements
+// Elements DOM
 const statusArea = document.getElementById('status-area');
 const menuScreen = document.getElementById('menu-screen');
 const gameArea = document.getElementById('game-area');
 const genFiltersCont = document.getElementById('gen-filters');
 const board = document.getElementById('board');
 const messageEl = document.getElementById('message');
-const resultImg = document.getElementById('pokemon-result-image'); // Image résultat
+const resultImg = document.getElementById('pokemon-result-image'); 
 
 const restartBtn = document.getElementById('restart-btn');
 const giveupBtn = document.getElementById('giveup-btn');
-const validateBtn = document.getElementById('validate-btn'); // NOUVEAU : Référence au bouton valider
+const validateBtn = document.getElementById('validate-btn'); 
 const menuReturnBtn = document.getElementById('menu-return-btn');
 const btnDailyStart = document.getElementById('btn-daily-start');
 
-// NOUVEAU : Référence au bouton de partage
+// Bouton spécifique pour le mode série
+const nextStreakBtn = document.getElementById('next-streak-btn'); 
+// Bouton de démarrage série (il faut le récupérer s'il a un ID, sinon on utilisera querySelector)
+const btnStreakStart = document.getElementById('btn-streak-start');
+
 const shareBtn = document.getElementById('share-btn');
 
 const keyboardCont = document.getElementById('keyboard-cont');
 const modeBadge = document.getElementById('mode-badge');
+
+// Elements spécifiques au mode Streak
+const streakCounter = document.getElementById('streak-counter'); 
 
 const hintGen = document.getElementById('hint-gen');
 const lblGen = document.getElementById('lbl-gen');
@@ -80,47 +88,71 @@ const keyboardLayout = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"];
 
 // --- GESTION SAUVEGARDE ET FERMETURE ---
 
-// Sauvegarder l'état actuel (appelé quand on quitte ou à chaque action importante)
-
 function saveDailyState() {
     if (gameMode !== 'daily' || !targetPokemon) return;
 
     const todayKey = getTodayDateKey();
-    
-    // CORRECTION : On détermine la victoire en vérifiant si le dernier mot joué est le bon.
-    // Cela fonctionne peu importe le message affiché ("Bravo", "ONE SHOT", etc.)
     const lastGuess = savedGuesses.length > 0 ? savedGuesses[savedGuesses.length - 1] : "";
     const hasWon = (lastGuess === targetPokemon.normalized);
     
-    // Construction de l'objet de sauvegarde
     const gameState = {
         status: isGameOver ? 'completed' : 'in-progress',
         targetId: targetPokemon.id,
         currentRow: currentRow,
-        currentGuess: currentGuess, // Le mot en cours de frappe
+        currentGuess: currentGuess, 
         grid: savedGrid,
         guesses: savedGuesses,
-        won: isGameOver && hasWon, // Condition beaucoup plus solide
+        won: isGameOver && hasWon, 
         attempts: currentRow 
     };
 
     if (isGameOver) {
-        gameState.attempts = currentRow + 1; // Si fini, on fige le nombre d'essais
+        gameState.attempts = currentRow + 1; 
     }
 
     localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameState));
 }
 
-// Écouteur pour la fermeture de l'onglet ou du navigateur
+// Nouvelle fonction pour sauvegarder l'état du mode Série
+function saveStreakState() {
+    if (gameMode !== 'streak' || !targetPokemon) return;
+    
+    // Si la partie est finie (perdu), on ne sauvegarde pas l'état "en cours"
+    if (isGameOver && document.getElementById('next-streak-btn').style.display === 'none') {
+        localStorage.removeItem('tusmon_streak_state');
+        return;
+    }
+
+    const state = {
+        streak: currentStreak,
+        targetId: targetPokemon.id,
+        currentRow: currentRow,
+        currentGuess: currentGuess,
+        grid: savedGrid,
+        guesses: savedGuesses,
+        status: 'in-progress' // On considère toujours 'in-progress' sauf si perdu
+    };
+    
+    // Si on a gagné le round mais pas cliqué sur suivant, on sauvegarde quand même pour reprendre au bouton "Suivant"
+    if (isGameOver) {
+        state.status = 'round-won';
+    }
+
+    localStorage.setItem('tusmon_streak_state', JSON.stringify(state));
+}
+
 window.addEventListener('beforeunload', () => {
     if (gameMode === 'daily' && !isGameOver) {
         saveDailyState();
+    }
+    // Sauvegarde série en quittant
+    if (gameMode === 'streak') {
+        saveStreakState();
     }
 });
 
 // --- GESTION FIREBASE (AUTH & LEADERBOARD) ---
 
-// 1. Connexion Twitter
 function loginWithTwitter() {
     if (!auth) return;
     const provider = new firebase.auth.TwitterAuthProvider();
@@ -149,13 +181,10 @@ function loginWithTwitter() {
         });
 }
 
-// 2. Mise à jour de l'interface de connexion
 function updateAuthUI(user) {
     currentUser = user;
     const btnLogin = document.getElementById('btn-twitter-login');
     const txtInfo = document.getElementById('user-info');
-    
-    // Référence au conteneur du bouton admin
     const adminSection = document.getElementById('admin-section');
 
     if (user) {
@@ -164,15 +193,11 @@ function updateAuthUI(user) {
         txtInfo.style.display = 'block';
         txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
         
-        // --- LOGIQUE ADMIN ---
-        // Vérifie si le handle correspond exactement à celui attendu
         if (handle === '@suedlemot') {
-            // Affiche le bloc complet contenant le bouton admin
             if (adminSection) adminSection.style.display = 'flex';
         } else {
             if (adminSection) adminSection.style.display = 'none';
         }
-        // ---------------------
 
         const todayKey = getTodayDateKey();
         const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
@@ -190,26 +215,20 @@ function updateAuthUI(user) {
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
-        
-        // Cache la section admin si déconnecté
         if (adminSection) adminSection.style.display = 'none';
     }
 }
 
-// --- AJOUT : GESTION DU PANEL ADMIN ---
 function showAdminPanel() {
-    // Cache le menu, Affiche le panel admin en flex (pour centrer)
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'flex';
 }
 
 function closeAdminPanel() {
-    // Cache le panel admin, Réaffiche le menu
     document.getElementById('admin-screen').style.display = 'none';
     document.getElementById('menu-screen').style.display = 'flex';
 }
 
-// FONCTION UTILITAIRE : Vérifier si le joueur a déjà un score sur le serveur
 function checkRemoteDailyStatus() {
     if (!currentUser || !db) return;
     
@@ -223,7 +242,6 @@ function checkRemoteDailyStatus() {
             if (btnDaily) {
                 btnDaily.disabled = true;
                 btnDaily.textContent = "DÉJÀ JOUÉ"; 
-                // On met à jour le local storage pour refléter que c'est fini
                 if (!localStorage.getItem('tusmon_daily_' + todayKey)) {
                      localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify({status: 'completed', remote: true}));
                 }
@@ -232,7 +250,6 @@ function checkRemoteDailyStatus() {
     }).catch(err => console.error("Erreur vérif score distant:", err));
 }
 
-// 3. Charger le Leaderboard
 function loadLeaderboard() {
     if (!db) return;
 
@@ -441,9 +458,12 @@ function handleLogoClick() {
 }
 
 function showMenu() {
-    // Si on est en mode daily et que la partie n'est pas finie, on sauvegarde
+    // Sauvegardes avant de quitter
     if (gameMode === 'daily' && !isGameOver && targetPokemon) {
-        saveDailyState(); // Sauvegarde cruciale avant de quitter l'écran
+        saveDailyState(); 
+    }
+    if (gameMode === 'streak' && targetPokemon) {
+        saveStreakState();
     }
 
     gameArea.style.display = 'none';
@@ -455,9 +475,9 @@ function showMenu() {
         loadLeaderboard();
     }
 
+    // Gestion de l'affichage du bouton Daily (reprendre ou déjà joué)
     const todayKey = getTodayDateKey();
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
-    
     let hasPlayedDaily = false;
     let isInProgress = false;
     
@@ -483,9 +503,32 @@ function showMenu() {
         btnDailyStart.textContent = "JOUER AU POKÉMON DU JOUR";
     }
 
+    // Gestion de l'affichage du bouton STREAK (Reprendre ou Démarrer)
+    const storedStreak = localStorage.getItem('tusmon_streak_state');
+    if (btnStreakStart) {
+        if (storedStreak) {
+            try {
+                const sData = JSON.parse(storedStreak);
+                // Si on a une sauvegarde valide qui n'est pas "game over"
+                if (sData) {
+                    btnStreakStart.textContent = `REPRENDRE SÉRIE (${sData.streak})`;
+                } else {
+                    btnStreakStart.textContent = "DÉMARRER LA SÉRIE";
+                }
+            } catch(e) {
+                btnStreakStart.textContent = "DÉMARRER LA SÉRIE";
+            }
+        } else {
+            btnStreakStart.textContent = "DÉMARRER LA SÉRIE";
+        }
+    }
+
     if (currentUser) {
         checkRemoteDailyStatus();
     }
+    
+    // Reset streak visuel dans le menu si nécessaire
+    if (streakCounter) streakCounter.style.display = 'none';
 }
 
 function normalizeName(name) {
@@ -577,7 +620,6 @@ function startDailyGame() {
     const dailyIndex = getDailyPokemonIndex(pokemonList.length);
     targetPokemon = pokemonList[dailyIndex];
     
-    // Réinitialisation des états mémoire
     savedGrid = [];
     savedGuesses = [];
     
@@ -599,7 +641,6 @@ function startDailyGame() {
     }
 
     if (!isResuming) {
-        // NOUVELLE PARTIE : On écrase l'ancien localStorage pour être propre
         const initialState = { 
             status: 'in-progress', 
             grid: [],
@@ -612,6 +653,107 @@ function startDailyGame() {
     }
 
     setupGameUI(isResuming, gameData);
+}
+
+// --- FONCTIONS MODE SÉRIE (CORRIGÉES) ---
+function startStreakGame() {
+    gameMode = 'streak';
+    gamePool = [...pokemonList]; // Tout le pool
+    activeFilters = []; // Pas de filtres
+    
+    if (gamePool.length === 0) {
+        alert("Erreur: Liste de Pokémon vide");
+        return;
+    }
+
+    // Vérifier s'il y a une sauvegarde "Série"
+    const savedStreak = localStorage.getItem('tusmon_streak_state');
+    if (savedStreak) {
+        try {
+            const data = JSON.parse(savedStreak);
+            // On reprend si ce n'est pas game over (la suppression se fait au Game Over)
+            if (data && (data.status === 'in-progress' || data.status === 'round-won')) {
+                console.log("Reprise de la série...");
+                
+                // Restauration des variables
+                currentStreak = data.streak || 0;
+                targetPokemon = pokemonList.find(p => p.id === data.targetId);
+                
+                if (!targetPokemon) {
+                    // Si par hasard l'ID n'existe plus (ex: maj fichier csv), on recommence
+                    pickRandomPokemon();
+                    setupGameUI(false);
+                    return;
+                }
+
+                // Si on avait gagné le round précédent sans cliquer sur suivant
+                if (data.status === 'round-won') {
+                    // On simule une fin de partie gagnée pour afficher le bouton "Suivant"
+                    // On restaure juste pour l'affichage
+                    setupGameUI(true, data);
+                    
+                    // CORRECTION : Affichage cohérent avec le message de victoire classique (Score au lieu du Nom)
+                    // Évite l'effet "Nom en double" (Grille + Message)
+                    showMessage("Bravo ! Série : " + currentStreak + " 🔥");
+                    
+                    // On force l'état de fin de round
+                    isGameOver = true;
+                    // Affichage des éléments de fin
+                    document.getElementById('keyboard-cont').style.display = 'none';
+                    if (validateBtn) validateBtn.style.display = 'none';
+                    if (giveupBtn) giveupBtn.style.display = 'none';
+                    if (nextStreakBtn) nextStreakBtn.style.display = 'inline-block';
+                    
+                    // Image
+                    if (targetPokemon && targetPokemon.id) {
+                         const type = 'regular';
+                         resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
+                         resultImg.style.display = 'block';
+                    }
+                    
+                    // console log cheat
+                    console.log("%c🔥 SOLUTION SÉRIE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
+                    
+                } else {
+                    // Partie purement en cours
+                    // Console log cheat
+                    console.log("%c🔥 SOLUTION SÉRIE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
+                    setupGameUI(true, data);
+                }
+                return;
+            }
+        } catch (e) {
+            console.error("Erreur parsing streak save", e);
+        }
+    }
+
+    // Pas de sauvegarde ou nouvelle partie
+    currentStreak = 0; 
+    savedGrid = [];
+    savedGuesses = [];
+    currentRow = 0;
+    currentGuess = "";
+    
+    pickRandomPokemon();
+    setupGameUI(false);
+}
+
+// Fonction appelée quand on gagne et qu'on clique sur "Suivant"
+function nextStreakLevel() {
+    if (gameMode !== 'streak') return;
+    
+    // Reset des variables de jeu pour le nouveau round
+    savedGrid = [];
+    savedGuesses = [];
+    currentRow = 0;
+    currentGuess = "";
+    isGameOver = false;
+
+    pickRandomPokemon();
+    setupGameUI(false);
+    
+    // Sauvegarde immédiate du nouvel état
+    saveStreakState();
 }
 
 function startRandomGame() {
@@ -632,60 +774,68 @@ function startRandomGame() {
         return;
     }
 
+    savedGrid = [];
+    savedGuesses = [];
+    currentRow = 0;
+    currentGuess = "";
+
     pickRandomPokemon();
-    setupGameUI();
+    setupGameUI(false);
 }
 
 function pickRandomPokemon() {
     if (gamePool.length <= 1) {
         targetPokemon = gamePool[0];
-        return;
+    } else {
+        let randomIndex;
+        let newPokemon;
+        // Eviter de retomber sur le même (simple sécurité)
+        let safety = 0;
+        do {
+            randomIndex = Math.floor(Math.random() * gamePool.length);
+            newPokemon = gamePool[randomIndex];
+            safety++;
+        } while (newPokemon.id === lastPlayedId && safety < 10);
+        
+        targetPokemon = newPokemon;
+        lastPlayedId = targetPokemon.id;
     }
-    let randomIndex;
-    let newPokemon;
-    do {
-        randomIndex = Math.floor(Math.random() * gamePool.length);
-        newPokemon = gamePool[randomIndex];
-    } while (newPokemon.id === lastPlayedId);
-    targetPokemon = newPokemon;
-    lastPlayedId = targetPokemon.id;
+
+    // Affichage de la solution dans la console pour le dev
+    if (gameMode === 'streak') {
+        console.log("%c🔥 SOLUTION SÉRIE : " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
+    } else {
+        console.log("Solution (Mode Aléatoire) : " + targetPokemon.original);
+    }
 }
 
 function getDailyPokemonIndex(listLength) {
     const dateStr = getTodayDateKey();
     
-    // 1. Hachage initial de la date (identique à avant)
     let hash = 0;
     for (let i = 0; i < dateStr.length; i++) {
         hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
         hash |= 0; 
     }
 
-    // 2. CORRECTION : Mélangeur "SplitMix32"
-    // Cette méthode garantit une bien meilleure distribution aléatoire
-    // et évite les cycles courts ou les motifs linéaires.
     let z = (hash + 0x9E3779B9) | 0;
     z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
     z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
     z = z ^ (z >>> 16);
 
-    // 3. Retourne un index positif valide
     return (z >>> 0) % listLength;
 }
 
 function restartCurrentMode() {
     if (gameMode === 'classic') {
-        pickRandomPokemon();
-        setupGameUI();
+        startRandomGame();
+    } else if (gameMode === 'streak') {
+        // En cas de recommencement (après défaite), on efface la sauvegarde
+        localStorage.removeItem('tusmon_streak_state');
+        startStreakGame(); // On redémarre la série à 0
     } else {
         showMenu();
     }
-}
-
-function skipToClassic() {
-    const checkboxes = genFiltersCont.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => cb.checked = true);
-    startRandomGame();
 }
 
 // --- CONFIGURATION UI ---
@@ -702,25 +852,85 @@ function setupGameUI(isResuming = false, gameData = {}) {
     
     if (shareBtn) shareBtn.style.display = "none";
 
+    // Gestion des boutons de fin
     restartBtn.style.display = "none";
     giveupBtn.style.display = "inline-block";
     menuReturnBtn.style.display = "inline-block";
-    validateBtn.style.display = "inline-block"; // AFFICHER LE BOUTON VALIDER
+    validateBtn.style.display = "inline-block";
     
+    // Le bouton next est caché par défaut
+    if (nextStreakBtn) nextStreakBtn.style.display = "none";
+    
+    // Reset des indices
     valGen.classList.remove('revealed');
     hintStage.classList.remove('visible');
     hintType.classList.remove('visible');
     
+    // GESTION DES BADGES ET AFFICHAGES
+    if (streakCounter) streakCounter.style.display = 'none';
+
+    // Création/Récupération de l'élément de score IN-GAME
+    let inGameScoreDisplay = document.getElementById('ingame-score-display');
+    if (!inGameScoreDisplay) {
+        inGameScoreDisplay = document.createElement('div');
+        inGameScoreDisplay.id = 'ingame-score-display';
+        // Style simple : jaune doré, gras, un peu d'espace
+        inGameScoreDisplay.style.color = '#f0b230';
+        inGameScoreDisplay.style.fontWeight = 'bold';
+        inGameScoreDisplay.style.marginTop = '5px';
+        inGameScoreDisplay.style.fontSize = '1.1rem';
+        inGameScoreDisplay.style.textTransform = 'uppercase';
+        // On l'insère après le modeBadge
+        modeBadge.parentNode.insertBefore(inGameScoreDisplay, modeBadge.nextSibling);
+    }
+
     if (gameMode === 'daily') {
         modeBadge.textContent = "POKÉMON DU JOUR";
         modeBadge.classList.remove('classic');
+        modeBadge.style.background = ""; // Reset gradient
+        modeBadge.style.backgroundColor = "var(--correct)";
+        
+        // Pas de score affiché en daily/classic
+        inGameScoreDisplay.style.display = 'none';
+
         lblGen.textContent = "GÉN:";
         valGen.textContent = ""; 
         valGen.style.textTransform = ""; 
         hintGen.classList.remove('visible'); 
+
+    } else if (gameMode === 'streak') {
+        modeBadge.textContent = "MODE SÉRIE 🔥";
+        modeBadge.classList.add('classic');
+        // Application du dégradé Fire
+        modeBadge.style.background = "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)";
+        modeBadge.style.border = "none";
+
+        // Affichage du score In-Game
+        inGameScoreDisplay.style.display = 'block';
+        inGameScoreDisplay.textContent = "Score : " + currentStreak;
+
+        // Mise à jour éventuelle du compteur menu (si existe)
+        if (streakCounter) {
+            streakCounter.style.display = 'block';
+            streakCounter.textContent = "Série actuelle : " + currentStreak;
+        }
+
+        // Masqué comme le Daily au départ
+        lblGen.textContent = "GÉN:";
+        valGen.textContent = ""; 
+        valGen.style.textTransform = ""; 
+        hintGen.classList.remove('visible'); 
+
     } else {
+        // Classic Random
         modeBadge.textContent = "MODE ALÉATOIRE";
         modeBadge.classList.add('classic');
+        modeBadge.style.background = ""; // Reset gradient
+        modeBadge.style.backgroundColor = "var(--btn-neutral)";
+
+        // Pas de score affiché
+        inGameScoreDisplay.style.display = 'none';
+
         lblGen.textContent = "GÉN:";
         const unselected = allGenerations.filter(g => !activeFilters.includes(g));
         let filtersText = "";
@@ -736,6 +946,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
         hintGen.classList.add('visible'); 
     }
 
+    // Reset visuel du clavier
     document.querySelectorAll('.keyboard-button').forEach(btn => {
         btn.classList.remove('correct', 'present', 'absent');
     });
@@ -743,7 +954,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
     targetWord = targetPokemon.normalized;
     wordLength = targetWord.length;
     
-    // ON FIXE LA LONGUEUR MINIMALE POUR NE PAS EFFACER LA PREMIERE LETTRE
     fixedLength = 1; 
 
     knownLetters = new Array(wordLength).fill(null);
@@ -753,29 +963,37 @@ function setupGameUI(isResuming = false, gameData = {}) {
         if (targetWord[i] === '.') knownLetters[i] = '.';
     }
 
-    // Initialisation ou reprise
-    currentRow = 0;
-    currentGuess = targetWord[0];
-
-    if (isResuming) {
-        // Chargement des données de sauvegarde
+    // Si on ne reprend pas une partie, on s'assure que tout est à zéro
+    if (!isResuming) {
+        currentRow = 0;
+        currentGuess = targetWord[0];
+    } else {
         savedGrid = gameData.grid || [];
         savedGuesses = gameData.guesses || [];
         currentRow = gameData.currentRow || 0;
         
-        // Sécurité : si currentRow = 0 mais qu'on a des grilles, on avance
-        if (currentRow === 0 && savedGrid.length > 0) {
-            currentRow = savedGrid.length;
-        }
-        
-        // RESTAURATION DU MOT EN COURS (celui qu'on tapait avant de quitter)
-        if (gameData.currentGuess && gameData.currentGuess.length > 0) {
-            currentGuess = gameData.currentGuess;
+        // CORRECTION BUG DOUBLE LIGNE : 
+        // Si le statut est "round-won", on ne doit pas avancer à la ligne suivante.
+        // On reste sur la dernière ligne jouée (la ligne gagnante).
+        if (gameData.status === 'round-won') {
+             currentRow = savedGrid.length > 0 ? savedGrid.length - 1 : 0;
+             // On remet le mot gagnant dans currentGuess pour l'affichage correct
+             currentGuess = savedGuesses[currentRow] || targetWord;
         } else {
-            currentGuess = targetWord[0]; // Par défaut première lettre
+            // Comportement standard pour une partie en cours
+            if (currentRow === 0 && savedGrid.length > 0) {
+                currentRow = savedGrid.length;
+            }
+            
+            if (gameData.currentGuess && gameData.currentGuess.length > 0) {
+                currentGuess = gameData.currentGuess;
+            } else {
+                currentGuess = targetWord[0]; 
+            }
         }
     }
 
+    // CONSTRUCTION DE LA GRILLE (C'est ici que ça se joue !)
     board.innerHTML = "";
     board.style.setProperty('--cols', wordLength);
     for (let i = 0; i < maxGuesses * wordLength; i++) {
@@ -785,41 +1003,32 @@ function setupGameUI(isResuming = false, gameData = {}) {
         board.appendChild(tile);
     }
 
-    // --- RESTAURATION ---
     if (isResuming) { 
         restoreGameSession(); 
     } 
 
-    updateGrid(); // Affiche le mot en cours (currentGuess)
+    updateGrid(); 
     updateHints();
 }
 
-// --- FONCTION DE RESTAURATION AMÉLIORÉE ---
 function restoreGameSession() {
     let globalKeyUpdates = {};
-    
-    // On boucle sur les lignes déjà validées (stockées dans savedGuesses/savedGrid)
-    // On utilise savedGrid.length comme référence car c'est la vérité terrain des essais validés
     const linesToRestore = savedGrid.length;
 
     for (let r = 0; r < linesToRestore; r++) {
         const resultString = savedGrid[r];
-        const guessWord = savedGuesses[r] || ""; // Mot sauvegardé ou vide si vieille sauvegarde
-        const emojiArray = [...resultString]; // Conversion pour gérer les emojis correctement
+        const guessWord = savedGuesses[r] || ""; 
+        const emojiArray = [...resultString]; 
 
         const startIdx = r * wordLength;
 
-        // Remplir les tuiles de cette ligne
         for (let c = 0; c < wordLength; c++) {
             const tile = document.getElementById('tile-' + (startIdx + c));
             
-            // 1. Récupération de la lettre
             let char = "";
             if (guessWord && guessWord[c]) {
                 char = guessWord[c];
             } else {
-                // FALLBACK : Si pas de mot sauvegardé (vieux format), on triche intelligemment
-                // Si la case est VERTE (rouge dans le code), on met la lettre de la réponse
                 if (emojiArray[c] === '🟥' && targetWord[c]) {
                     char = targetWord[c];
                 }
@@ -828,38 +1037,33 @@ function restoreGameSession() {
             tile.textContent = char;
             tile.classList.add('flip'); 
             
-            // 2. Application des couleurs
             let stateClass = 'absent';
             let keyboardState = 'absent';
             const stateChar = emojiArray[c];
             
             switch (stateChar) {
-                case '🟥': // Correct
+                case '🟥': 
                     stateClass = 'correct'; 
                     keyboardState = 'correct';
                     if (char) knownLetters[c] = char; 
                     break;
-                case '🟨': // Présent
+                case '🟨': 
                     stateClass = 'present'; 
                     keyboardState = 'present';
                     break;
-                case '⬛': // Absent
+                case '⬛': 
                 default: 
                     stateClass = 'absent'; 
                     keyboardState = 'absent';
             }
             tile.classList.add(stateClass);
             
-            // 3. Mise à jour clavier
             if (char) {
                 const charUpper = char.toUpperCase();
-                // Logique de priorité des couleurs clavier (Vert > Jaune > Gris)
                 if (globalKeyUpdates[charUpper] === 'correct') {
-                    // Reste vert
                 } else if (keyboardState === 'correct') {
                     globalKeyUpdates[charUpper] = 'correct';
                 } else if (globalKeyUpdates[charUpper] === 'present' && keyboardState === 'absent') {
-                    // Reste jaune
                 } else if (keyboardState === 'present') {
                     globalKeyUpdates[charUpper] = 'present';
                 } else if (!globalKeyUpdates[charUpper]) {
@@ -925,7 +1129,16 @@ function createKeyBtn(char) {
 
 document.addEventListener('keydown', (e) => {
     if (isGameOver && e.key === 'Enter') {
-        restartCurrentMode();
+        // En mode streak, Entrée valide le "Niveau Suivant" ou "Rejouer"
+        if (gameMode === 'streak') {
+            if (nextStreakBtn && nextStreakBtn.style.display !== 'none') {
+                nextStreakLevel();
+            } else if (restartBtn && restartBtn.style.display !== 'none') {
+                startStreakGame();
+            }
+        } else {
+             restartCurrentMode();
+        }
         return;
     }
 
@@ -994,7 +1207,8 @@ function updateHints() {
         hintType.classList.add('visible');
     }
 
-    if (gameMode === 'daily') {
+    // MODIFICATION : Le mode Streak est ajouté ici pour être géré comme le Daily
+    if (gameMode === 'daily' || gameMode === 'streak') {
         if (currentRow >= 4) {
             if (valGen.textContent !== targetPokemon.gen) {
                 valGen.textContent = targetPokemon.gen;
@@ -1004,7 +1218,9 @@ function updateHints() {
             hintGen.classList.add('visible');
         }
     }
-    else if (gameMode === 'classic') {
+    // En random (classic), on révèle la Gen au 4eme essai aussi (si elle était pas visible ?)
+    // Note : en random "valGen" contient déjà les filtres, donc le révéler le change juste en la vraie valeur
+    else {
         if (currentRow >= 4) {
             if (valGen.textContent !== targetPokemon.gen) {
                 valGen.textContent = targetPokemon.gen;
@@ -1093,29 +1309,26 @@ function checkGuess() {
         }
     });
 
-    // --- SAUVEGARDE DE L'ESSAI ---
+    // SAUVEGARDE QUOTIDIENNE
     if (gameMode === 'daily') {
-        // Mise à jour des variables globales
         savedGrid.push(rowResult);
         savedGuesses.push(currentGuess);
-        
-        // On incrémente currentRow après la sauvegarde locale mais avant la sauvegarde disque
-        // pour que saveDailyState prenne le bon index
-        // ATTENTION : saveDailyState utilise la variable globale currentRow.
-        // Ici, on veut dire que l'essai courant est validé.
-        
-        // On sauvegarde tout de suite avec currentRow actuel (l'essai vient d'être fait)
-        // Mais currentRow ne sera incrémenté visuellement qu'à la fin de l'anim.
-        // Pour la sauvegarde, on veut marquer que cet essai est fait.
-        
-        // On simule l'incrément pour la sauvegarde
         currentRow++; 
-        currentGuess = ""; // On vide pour la sauvegarde
-        
-        saveDailyState(); // Sauvegarde !
-        
-        currentRow--; // On remet pour finir l'animation proprement
-        currentGuess = guessArray.join(''); // On remet pour l'anim
+        currentGuess = ""; 
+        saveDailyState(); 
+        currentRow--; 
+        currentGuess = guessArray.join(''); 
+    }
+    // SAUVEGARDE SÉRIE (Ajouté ici pour sauvegarder à chaque coup)
+    else if (gameMode === 'streak') {
+        savedGrid.push(rowResult);
+        savedGuesses.push(currentGuess);
+        // On sauvegarde l'état avant de savoir si c'est fini ou non
+        currentRow++; 
+        currentGuess = "";
+        saveStreakState();
+        currentRow--; 
+        currentGuess = guessArray.join(''); 
     }
 
     rowTiles.forEach((tile, i) => {
@@ -1131,6 +1344,7 @@ function checkGuess() {
 
     setTimeout(() => {
         if (currentGuess === targetWord) {
+            // VICTOIRE
             let winMsg = targetPokemon.original + " ! Bravo !";
             let isShiny = false; 
             if (currentRow === 0) {
@@ -1138,18 +1352,39 @@ function checkGuess() {
                 isShiny = true;
                 triggerEmojiRain('✨');
             }
+            
+            if (gameMode === 'streak') {
+                currentStreak++;
+                // Mise à jour visuelle du compteur menu (si existant)
+                if (streakCounter) streakCounter.textContent = "Série actuelle : " + currentStreak;
+                
+                // Mise à jour visuelle du score en jeu
+                const inGameScoreDisplay = document.getElementById('ingame-score-display');
+                if (inGameScoreDisplay) inGameScoreDisplay.textContent = "Score : " + currentStreak;
+
+                winMsg = "Bravo ! Série : " + currentStreak + " 🔥";
+                
+                // Sauvegarde après victoire du round (pour pouvoir reprendre)
+                // Note : saveStreakState sera appelé dans endGame -> saveStreakState (si non game over)
+                // Mais ici on n'a pas encore mis isGameOver à true, donc on le fait manuellement après
+            }
+
             showMessage(winMsg);
             endGame(true, isShiny); 
+
         } else if (currentRow === maxGuesses - 1) {
+            // DÉFAITE
             showMessage("Perdu... C'était " + targetPokemon.original);
             endGame(false); 
         } else {
+            // TOUR SUIVANT
             currentRow++;
             currentGuess = targetWord[0];
             
-            // Mise à jour de la sauvegarde pour dire "je suis prêt pour la ligne suivante"
             if (gameMode === 'daily') {
                 saveDailyState(); 
+            } else if (gameMode === 'streak') {
+                saveStreakState();
             }
             
             updateGrid();
@@ -1183,6 +1418,7 @@ function triggerShake() {
 
 function showMessage(msg) {
     messageEl.textContent = msg;
+    // Si game over en streak, on laisse le message affiché pour voir le score
     if (!isGameOver) {
         setTimeout(() => {
             if (!isGameOver) messageEl.textContent = "";
@@ -1200,8 +1436,6 @@ function endGame(isVictory, isShiny = false) {
     isGameOver = true;
     
     keyboardCont.style.display = 'none';
-    
-    // NOUVEAU : On cache le bouton valider
     if (validateBtn) validateBtn.style.display = 'none';
     
     if (targetPokemon && targetPokemon.id) {
@@ -1219,19 +1453,35 @@ function endGame(isVictory, isShiny = false) {
     }
 
     if (gameMode === 'daily') {
-        saveDailyState(); // Sauvegarde finale
-        
+        saveDailyState(); 
         restartBtn.style.display = "none"; 
         if (shareBtn) shareBtn.style.display = "inline-block";
-        giveupBtn.style.display = "none"; 
-        
-        let attemptsCount = currentRow + 1;
-        saveScoreToFirebase(isVictory, attemptsCount);
-    } else {
+        saveScoreToFirebase(isVictory, currentRow + 1);
+    } 
+    else if (gameMode === 'streak') {
+        if (isVictory) {
+            // Victoire en streak : on propose le suivant
+            restartBtn.style.display = "none"; 
+            if (nextStreakBtn) nextStreakBtn.style.display = "inline-block";
+            // On sauvegarde l'état "gagné mais pas fini" pour pouvoir reprendre
+            saveStreakState();
+        } else {
+            // Défaite en streak : on affiche le score final et le bouton Rejouer
+            messageEl.textContent += ` (Série finie : ${currentStreak})`;
+            restartBtn.style.display = "inline-block"; 
+            restartBtn.textContent = "Recommencer la série"; // Petit bonus UX
+            if (nextStreakBtn) nextStreakBtn.style.display = "none";
+            
+            // Suppression de la sauvegarde car perdu
+            localStorage.removeItem('tusmon_streak_state');
+        }
+    }
+    else {
+        // Classic Random
         restartBtn.style.display = "inline-block"; 
+        restartBtn.textContent = "Rejouer";
     }
     
-    if (gameMode !== 'daily' && shareBtn) shareBtn.style.display = "none";
     giveupBtn.style.display = "none"; 
 }
 
