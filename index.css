@@ -43,17 +43,24 @@ h1 {
 h1:active { transform: scale(0.95); }
 h1 .white-text { color: #ffffff; }
 
-/* --- NOUVELLE LAYOUT 3 COLONNES --- */
-#menu-screen.menu-layout {
-    display: flex; /* Géré par JS (flex/none) */
-    flex-direction: column; /* Mobile par défaut */
-    align-items: center;
+/* --- NOUVELLE MISE EN PAGE : GRID SYSTEM --- */
+#menu-screen {
     width: 100%;
-    max-width: 1200px;
-    gap: 20px;
+    max-width: 1200px; /* Largeur max pour que ça ne s'étale pas trop sur grands écrans */
+    display: flex;     /* Par défaut (géré par le script show/hide) */
+    justify-content: center;
 }
 
-/* Style de base des cartes (utilisé partout) */
+/* La grille interne */
+#menu-layout-grid {
+    display: flex;
+    flex-direction: column; /* Mobile first : colonne unique */
+    width: 100%;
+    gap: 20px;
+    align-items: center;
+}
+
+/* Style de base des cartes */
 .menu-card {
     background-color: #1e1e1e;
     border-radius: 10px;
@@ -65,60 +72,52 @@ h1 .white-text { color: #ffffff; }
     display: flex;
     flex-direction: column;
     gap: 15px;
+    margin-bottom: 0;
 }
 
-/* SUR ORDINATEUR (Largeur > 900px) */
-@media (min-width: 900px) {
-    #menu-screen.menu-layout {
-        flex-direction: row; /* On passe en ligne */
-        align-items: flex-start; /* Tout aligné en haut */
-        justify-content: center;
+/* Style spécifique pour le bloc admin (couleur dorée) */
+.admin-highlight {
+    border-color: #ffd700;
+}
+
+/* --- VERSION ORDINATEUR (3 COLONNES) --- */
+@media (min-width: 1100px) {
+    #menu-layout-grid {
+        display: grid;
+        /* Colonne 1 (Classement) : 300px
+           Colonne 2 (Jeu) : prend tout l'espace restant (1fr)
+           Colonne 3 (Admin) : 300px
+        */
+        grid-template-columns: 300px 1fr 300px; 
+        align-items: start; /* Aligne les blocs en haut */
+        gap: 30px;
     }
 
-    .menu-column {
+    /* Ajustement des conteneurs de colonnes */
+    .col-center {
         display: flex;
         flex-direction: column;
         gap: 20px;
     }
-
-    /* Colonnes latérales (Leaderboard et Admin) */
-    .side-column {
-        flex: 1;
-        max-width: 300px;
-        min-width: 250px;
-    }
-
-    /* Colonne centrale (Jeu) plus large */
-    .center-column {
-        flex: 1.5;
-        max-width: 450px;
-    }
+    
+    /* Si la colonne de droite est vide (pas admin), la grille garde l'espace 
+       pour que le jeu reste au centre visuellement */
 }
 
-/* SUR MOBILE (Ordre d'affichage) */
-@media (max-width: 899px) {
-    .menu-column {
+/* --- VERSION MOBILE / TABLETTE (ORDRE D'AFFICHAGE) --- */
+@media (max-width: 1099px) {
+    .layout-column {
         width: 100%;
-        max-width: 450px;
+        max-width: 500px; /* Limite la largeur sur tablette */
     }
 
-    /* On veut que le jeu soit en PREMIER sur mobile */
-    .center-column { order: 1; }
-    /* Le classement en dessous */
-    .side-column:first-of-type { order: 2; }
-    /* L'admin tout en bas */
-    .side-column:last-of-type { order: 3; }
+    /* On force l'ordre d'affichage sur mobile */
+    .col-center { order: 1; } /* Jeu en premier */
+    .col-left { order: 2; }   /* Classement en deuxième */
+    .col-right { order: 3; }  /* Admin en dernier */
 }
 
-/* Ancienne classe .menu-section pour compatibilité interne si besoin,
-   mais maintenant on utilise directement le style de la carte */
-.menu-section-inner {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-/* --- LEADERBOARD & AUTH --- */
+/* --- ELEMENTS INTERNES (Titres, Boutons, etc.) --- */
 .menu-title {
     font-size: 1.2rem;
     font-weight: bold;
@@ -214,97 +213,42 @@ h1 .white-text { color: #ffffff; }
 }
 .mini-btn:hover { background-color: #555; }
 
-/* --- ANIMATION FLAMMES & EMOJIS --- */
+/* --- ANIMATIONS & POPUP --- */
 .falling-item {
-    position: fixed;
-    top: -50px;
-    z-index: 9999;
-    user-select: none;
-    pointer-events: none;
-    animation: fall linear forwards;
+    position: fixed; top: -50px; z-index: 9999; user-select: none; pointer-events: none; animation: fall linear forwards;
 }
-
 .falling-pokeball { width: 40px; height: 40px; background-size: contain; background-repeat: no-repeat; }
+@keyframes fall { to { transform: translate(var(--fall-x, 0px), 110vh) rotate(360deg); } }
 
-@keyframes fall {
-    to { transform: translate(var(--fall-x, 0px), 110vh) rotate(360deg); }
-}
-
-/* --- POPUP GENERATION --- */
 #gen-popup {
-    position: fixed;
-    display: none;
-    z-index: 10000;
-    background-color: #000;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    padding: 5px;
-    pointer-events: none; 
-    box-shadow: 0 4px 25px rgba(0,0,0,0.9);
-    max-width: 450px; 
+    position: fixed; display: none; z-index: 10000; background-color: #000; border: 2px solid var(--border);
+    border-radius: 8px; padding: 5px; pointer-events: none; box-shadow: 0 4px 25px rgba(0,0,0,0.9); max-width: 450px; 
 }
 #gen-popup img { width: 100%; height: auto; display: block; border-radius: 4px; }
-
-/* --- IMAGE RESULTAT FIN DE PARTIE --- */
 #pokemon-result-image {
-    width: 150px;
-    height: 150px;
-    margin: 10px auto;
-    object-fit: contain;
-    display: none; 
+    width: 150px; height: 150px; margin: 10px auto; object-fit: contain; display: none; 
     animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* --- JEU --- */
+/* --- ZONE DE JEU --- */
 #game-area { 
-    display: none; 
-    flex-direction: column; 
-    align-items: center; 
-    width: 100%;
-    max-width: 500px;
+    display: none; flex-direction: column; align-items: center; width: 100%; max-width: 500px;
 }
-
-/* --- BARRE D'INFOS --- */
 #info-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    margin-bottom: 10px;
-    width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 5px; margin-bottom: 10px; width: 100%;
 }
-
 #mode-badge {
-    background-color: var(--correct);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    background-color: var(--correct); color: white; padding: 4px 12px; border-radius: 4px;
+    font-size: 0.8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
 }
 #mode-badge.classic { background-color: var(--btn-neutral); }
 
 #hint-box {
-    display: flex;
-    gap: 10px;
-    font-size: 0.9rem;
-    min-height: 25px;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: flex; gap: 10px; font-size: 0.9rem; min-height: 25px; flex-wrap: wrap; justify-content: center;
 }
-
 .hint-tag {
-    background-color: var(--hint-bg);
-    padding: 4px 12px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    opacity: 0;
-    transform: translateY(-5px);
-    transition: all 0.5s ease;
-    display: none;
-    cursor: help; 
+    background-color: var(--hint-bg); padding: 4px 12px; border-radius: 12px; border: 1px solid var(--border);
+    opacity: 0; transform: translateY(-5px); transition: all 0.5s ease; display: none; cursor: help; 
 }
 .hint-tag.visible { opacity: 1; transform: translateY(0); display: block; }
 .hint-label { color: #aaa; margin-right: 5px; }
@@ -312,30 +256,16 @@ h1 .white-text { color: #ffffff; }
 .hint-value.revealed { color: #fff; animation: pop 0.3s ease; }
 @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
 
-/* GRILLE */
+/* GRILLE & CLAVIER */
 #board {
-    display: grid;
-    grid-template-columns: repeat(var(--cols, 5), 1fr);
-    gap: 2px;
-    margin: 0 auto 10px auto; 
-    width: fit-content;
-    max-width: min(350px, calc(var(--cols) * 55px)); 
+    display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 2px;
+    margin: 0 auto 10px auto; width: fit-content; max-width: min(350px, calc(var(--cols) * 55px)); 
     justify-content: center;
 }
-
 .tile {
-    aspect-ratio: 1 / 1;
-    border: 2px solid var(--border);
-    background-color: var(--tile-bg);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.5rem;
-    font-weight: bold;
-    text-transform: uppercase;
-    box-sizing: border-box;
-    color: #fff;
-    user-select: none;
+    aspect-ratio: 1 / 1; border: 2px solid var(--border); background-color: var(--tile-bg);
+    display: flex; justify-content: center; align-items: center; font-size: 1.5rem;
+    font-weight: bold; text-transform: uppercase; box-sizing: border-box; color: #fff; user-select: none;
 }
 .tile.active { border-color: #878a8c; }
 .tile.correct { background-color: var(--correct); border-color: var(--correct); }
@@ -346,21 +276,14 @@ h1 .white-text { color: #ffffff; }
 .tile.shake { animation: shake 0.5s; border-color: #ff4444; }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
 
-/* CLAVIER */
 #keyboard-cont {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    gap: 6px;
-    margin-top: 5px;
+    display: flex; flex-direction: column; align-items: center; width: 100%; gap: 6px; margin-top: 5px;
 }
 .keyboard-row { display: flex; justify-content: center; width: 100%; gap: 4px; }
 .keyboard-button {
-    font-family: inherit; font-weight: bold; border: 0; padding: 0; margin: 0;
-    height: 45px; border-radius: 4px; cursor: pointer; user-select: none;
-    background-color: var(--key-bg); color: white; flex: 1;
-    display: flex; justify-content: center; align-items: center;
+    font-family: inherit; font-weight: bold; border: 0; padding: 0; margin: 0; height: 45px;
+    border-radius: 4px; cursor: pointer; user-select: none; background-color: var(--key-bg);
+    color: white; flex: 1; display: flex; justify-content: center; align-items: center;
     text-transform: uppercase; font-size: 0.9rem; max-width: 40px;
 }
 .keyboard-button.wide { flex: 1.5; font-size: 0.75rem; max-width: 60px; }
@@ -376,22 +299,19 @@ h1 .white-text { color: #ffffff; }
     text-align: center; min-height: 20px; white-space: pre-wrap;
 }
 
-/* BOUTONS */
+/* BOUTONS ET CONTROLES */
 #controls {
-    display: flex; flex-direction: column; gap: 10px; margin-top: 10px;
-    justify-content: center; align-items: center; width: 100%;
+    display: flex; flex-direction: column; gap: 10px; margin-top: 10px; justify-content: center;
+    align-items: center; width: 100%;
 }
 .controls-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
-
 button.action-btn, button.menu-btn {
-    padding: 10px 20px; color: white; border: none; border-radius: 5px;
-    cursor: pointer; font-size: 1rem; font-weight: bold; transition: transform 0.1s;
+    padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer;
+    font-size: 1rem; font-weight: bold; transition: transform 0.1s;
 }
 button.action-btn:active, button.menu-btn:active { transform: scale(0.95); }
-
 .menu-btn.daily { background-color: var(--correct); width: 100%; }
 .menu-btn.random { background-color: var(--btn-primary); width: 100%; }
-
 button:disabled { background-color: var(--btn-disabled) !important; cursor: not-allowed; opacity: 0.7; }
 #share-btn { background-color: #1DA1F2; display: none; }
 #validate-btn { background-color: #538d4e; }
@@ -407,20 +327,8 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
 
 /* --- ÉCRAN PANEL ADMIN (Overlay) --- */
 #admin-screen {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center; 
-    width: 100%;
-    height: 100vh;
-    background-color: var(--bg);
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 2000;
+    display: none; flex-direction: column; align-items: center; justify-content: center; 
+    width: 100%; height: 100vh; background-color: var(--bg); position: fixed; top: 0; left: 0; z-index: 2000;
 }
-
-/* Style spécifique pour la carte dans l'overlay admin */
-.admin-popup-card {
-    max-width: 400px !important;
-}
+.admin-popup-card { max-width: 400px !important; }
+.menu-section-inner { display: flex; flex-direction: column; gap: 10px; }
