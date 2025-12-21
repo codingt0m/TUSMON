@@ -61,7 +61,7 @@ const btnDailyStart = document.getElementById('btn-daily-start');
 
 // Bouton spécifique pour le mode série
 const nextStreakBtn = document.getElementById('next-streak-btn'); 
-// Bouton de démarrage série (il faut le récupérer s'il a un ID, sinon on utilisera querySelector)
+// Bouton de démarrage série
 const btnStreakStart = document.getElementById('btn-streak-start');
 
 const shareBtn = document.getElementById('share-btn');
@@ -166,14 +166,17 @@ function loginWithTwitter() {
                      currentUser = result.user; 
                      updateAuthUI(result.user);
                      loadLeaderboard(); 
+                     loadWeeklyLeaderboard();
                  }).catch((error) => {
                      console.error("Erreur maj nom:", error);
                      updateAuthUI(result.user);
                      loadLeaderboard();
+                     loadWeeklyLeaderboard();
                  });
             } else {
                 updateAuthUI(result.user);
                 loadLeaderboard();
+                loadWeeklyLeaderboard();
             }
         }).catch((error) => {
             console.error(error);
@@ -212,10 +215,16 @@ function updateAuthUI(user) {
             } catch (e) {}
         }
         checkRemoteDailyStatus();
+        loadLeaderboard(); 
+        loadWeeklyLeaderboard();
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
         if (adminSection) adminSection.style.display = 'none';
+        
+        // On charge quand même les classements en mode anonyme
+        loadLeaderboard();
+        loadWeeklyLeaderboard();
     }
 }
 
@@ -364,7 +373,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (auth) {
         auth.onAuthStateChanged((user) => {
             updateAuthUI(user);
-            loadLeaderboard(); 
         });
     }
 
@@ -473,6 +481,7 @@ function showMenu() {
     
     if (gameMode === 'daily') {
         loadLeaderboard();
+        loadWeeklyLeaderboard();
     }
 
     // Gestion de l'affichage du bouton Daily (reprendre ou déjà joué)
@@ -1465,12 +1474,19 @@ function endGame(isVictory, isShiny = false) {
             if (nextStreakBtn) nextStreakBtn.style.display = "inline-block";
             // On sauvegarde l'état "gagné mais pas fini" pour pouvoir reprendre
             saveStreakState();
+            
+            // AJOUT : Sauvegarde du record hebdo même si on continue
+            checkAndSaveWeeklyStreak(currentStreak);
+
         } else {
             // Défaite en streak : on affiche le score final et le bouton Rejouer
             messageEl.textContent += ` (Série finie : ${currentStreak})`;
             restartBtn.style.display = "inline-block"; 
             restartBtn.textContent = "Recommencer la série"; // Petit bonus UX
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
+            
+            // AJOUT : Sauvegarde finale du record
+            checkAndSaveWeeklyStreak(currentStreak);
             
             // Suppression de la sauvegarde car perdu
             localStorage.removeItem('tusmon_streak_state');
