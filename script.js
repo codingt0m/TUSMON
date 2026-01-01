@@ -37,7 +37,9 @@ let lastPlayedId = null;
 // Variables pour la persistance de l'état (Sauvegarde)
 let savedGrid = [];     
 let savedGuesses = []; 
-let gameStartTime = 0; // NOUVEAU : Variable pour stocker le début de la partie
+let gameStartTime = 0; // Heure de début de la session actuelle
+let accumulatedTime = 0; // Temps accumulé des sessions précédentes
+let timerInterval = null; // Variable pour stocker l'intervalle du chrono visuel
 
 // Variable pour l'Easter Egg
 let logoClickCount = 0;
@@ -103,7 +105,7 @@ function saveDailyState() {
         currentGuess: currentGuess, 
         grid: savedGrid,
         guesses: savedGuesses,
-        startTime: gameStartTime, // NOUVEAU : On sauvegarde l'heure de début
+        startTime: gameStartTime, 
         won: isGameOver && hasWon, 
         attempts: currentRow 
     };
@@ -115,7 +117,7 @@ function saveDailyState() {
     localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(gameState));
 }
 
-// Nouvelle fonction pour sauvegarder l'état du mode Série
+// Fonction pour sauvegarder l'état du mode Série
 function saveStreakState() {
     if (gameMode !== 'streak' || !targetPokemon) return;
     
@@ -125,6 +127,8 @@ function saveStreakState() {
         return;
     }
 
+    const currentTotalTime = accumulatedTime + (Date.now() - gameStartTime);
+
     const state = {
         streak: currentStreak,
         targetId: targetPokemon.id,
@@ -132,10 +136,10 @@ function saveStreakState() {
         currentGuess: currentGuess,
         grid: savedGrid,
         guesses: savedGuesses,
-        status: 'in-progress' // On considère toujours 'in-progress' sauf si perdu
+        elapsedTime: currentTotalTime, 
+        status: 'in-progress' 
     };
     
-    // Si on a gagné le round mais pas cliqué sur suivant, on sauvegarde quand même pour reprendre au bouton "Suivant"
     if (isGameOver) {
         state.status = 'round-won';
     }
@@ -155,13 +159,42 @@ window.addEventListener('beforeunload', () => {
 
 // --- UTILS ---
 
-// NOUVEAU : Fonction pour formater le temps (ms -> mm:ss)
 function formatDuration(ms) {
-    if (!ms) return '';
+    if (!ms && ms !== 0) return '';
     const totalSeconds = Math.floor(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
-    return `${m}m${s.toString().padStart(2, '0')}`;
+    
+    if (m > 0) {
+        return `${m}m${s.toString().padStart(2, '0')}s`;
+    } else {
+        return `${s}s`;
+    }
+}
+
+// Gestion du Timer Visuel
+function startLiveTimer() {
+    stopLiveTimer(); // Sécurité
+    
+    const timerDisplay = document.getElementById('ingame-timer-display');
+    if (!timerDisplay) return;
+
+    // Fonction de mise à jour
+    const update = () => {
+        // Temps total = temps sauvegardé + temps depuis le début de cette session
+        const currentTotal = accumulatedTime + (Date.now() - gameStartTime);
+        timerDisplay.textContent = formatDuration(currentTotal);
+    };
+
+    update(); // Mise à jour immédiate
+    timerInterval = setInterval(update, 1000); // Mise à jour chaque seconde
+}
+
+function stopLiveTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
 }
 
 // --- GESTION FIREBASE (AUTH & LEADERBOARD) ---
@@ -198,23 +231,20 @@ function loginWithTwitter() {
 }
 
 
-// [Insérer cette nouvelle fonction sous la fonction loginWithTwitter existante]
 function logout() {
     if (!auth) return;
     auth.signOut().then(() => {
         console.log("Déconnecté");
-        // L'UI se mettra à jour automatiquement grâce au listener onAuthStateChanged
     }).catch((error) => {
         console.error("Erreur de déconnexion :", error);
     });
 }
 
-// [Remplacer la fonction updateAuthUI existante par celle-ci]
 function updateAuthUI(user) {
     currentUser = user;
     const btnLogin = document.getElementById('btn-twitter-login');
     const txtInfo = document.getElementById('user-info');
-    const btnLogout = document.getElementById('btn-logout'); // Nouveau
+    const btnLogout = document.getElementById('btn-logout'); 
     const adminSection = document.getElementById('admin-section');
 
     if (user) {
@@ -223,7 +253,6 @@ function updateAuthUI(user) {
         txtInfo.style.display = 'block';
         txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
         
-        // Afficher le bouton déconnexion
         if (btnLogout) btnLogout.style.display = 'block';
 
         if (handle === '@suedlemot') {
@@ -240,13 +269,7 @@ function updateAuthUI(user) {
                 const result = JSON.parse(storedData);
                 if (result && result.status === 'completed') {
                     console.log("Score local trouvé. Synchronisation...");
-                    // NOUVEAU : On récupère la durée sauvegardée localement si elle existe
                     const duration = result.startTime ? (Date.now() - result.startTime) : 0;
-                    // On envoie une durée estimée si pas dispo (0), sinon la vraie durée
-                    // Attention : ici on ne recalcule pas "maintenant - start", car la partie est déjà finie.
-                    // Si le status est completed, on suppose que la durée a été envoyée lors du EndGame.
-                    // Mais si c'est une synchro "retardée", on fait de notre mieux.
-                    // Pour simplifier, saveScoreToFirebase gère la mise à jour.
                     saveScoreToFirebase(result.won, result.attempts, duration); 
                 }
             } catch (e) {}
@@ -257,7 +280,6 @@ function updateAuthUI(user) {
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
-        // Masquer le bouton déconnexion
         if (btnLogout) btnLogout.style.display = 'none';
         
         if (adminSection) adminSection.style.display = 'none';
@@ -350,7 +372,6 @@ function loadLeaderboard() {
                 const color = data.won ? '#538d4e' : '#d9534f';
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
-                // NOUVEAU : Récupération et formatage de la durée
                 let timeDisplay = "";
                 if (data.won && data.duration) {
                     timeDisplay = formatDuration(data.duration);
@@ -367,7 +388,6 @@ function loadLeaderboard() {
                     userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
                 }
 
-                // NOUVEAU : Ajout de la colonne Temps dans le HTML
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${crownHtml}</div><span>${userLink}</span></div></td>
@@ -385,7 +405,6 @@ function loadLeaderboard() {
         });
 }
 
-// NOUVEAU : On ajoute le paramètre 'duration' (optionnel)
 function saveScoreToFirebase(won, attempts, duration = 0) {
     if (!currentUser || !db) return;
     const dateKey = getTodayDateKey();
@@ -401,14 +420,13 @@ function saveScoreToFirebase(won, attempts, duration = 0) {
                 photoURL: userPhoto,
                 attempts: attempts,
                 won: won,
-                duration: duration, // NOUVEAU : Enregistrement de la durée
+                duration: duration,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
                 loadLeaderboard(); 
                 checkRemoteDailyStatus();
             });
         } else {
-            // Si le score existe déjà, on ne l'écrase pas pour l'instant (règle du premier essai)
             loadLeaderboard();
             checkRemoteDailyStatus();
         }
@@ -516,6 +534,8 @@ function handleLogoClick() {
 }
 
 function showMenu() {
+    stopLiveTimer(); // Arrêt du timer en retournant au menu
+
     // Sauvegardes avant de quitter
     if (gameMode === 'daily' && !isGameOver && targetPokemon) {
         saveDailyState(); 
@@ -534,7 +554,6 @@ function showMenu() {
         loadWeeklyLeaderboard();
     }
 
-    // Gestion de l'affichage du bouton Daily (reprendre ou déjà joué)
     const todayKey = getTodayDateKey();
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
     let hasPlayedDaily = false;
@@ -568,7 +587,6 @@ function showMenu() {
         if (storedStreak) {
             try {
                 const sData = JSON.parse(storedStreak);
-                // Si on a une sauvegarde valide qui n'est pas "game over"
                 if (sData) {
                     btnStreakStart.textContent = `REPRENDRE ENDURANCE (${sData.streak})`;
                 } else {
@@ -586,7 +604,6 @@ function showMenu() {
         checkRemoteDailyStatus();
     }
     
-    // Reset streak visuel dans le menu si nécessaire
     if (streakCounter) streakCounter.style.display = 'none';
 }
 
@@ -693,7 +710,6 @@ function startDailyGame() {
             if (gameData.status === 'in-progress' && gameData.targetId === targetPokemon.id) {
                 isResuming = true;
                 console.log("Reprise de la partie quotidienne...");
-                // NOUVEAU : Récupération de l'heure de début sauvegardée
                 gameStartTime = gameData.startTime || Date.now();
             }
         } catch (e) {
@@ -702,7 +718,6 @@ function startDailyGame() {
     }
 
     if (!isResuming) {
-        // NOUVEAU : Démarrage du chronomètre
         gameStartTime = Date.now();
         
         const initialState = { 
@@ -712,7 +727,7 @@ function startDailyGame() {
             targetId: targetPokemon.id,
             currentRow: 0,
             currentGuess: "",
-            startTime: gameStartTime // Sauvegarde immédiate
+            startTime: gameStartTime
         };
         localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(initialState));
     }
@@ -720,11 +735,11 @@ function startDailyGame() {
     setupGameUI(isResuming, gameData);
 }
 
-// --- FONCTIONS MODE SÉRIE (CORRIGÉES) ---
+// --- FONCTIONS MODE SÉRIE ---
 function startStreakGame() {
     gameMode = 'streak';
-    gamePool = [...pokemonList]; // Tout le pool
-    activeFilters = []; // Pas de filtres
+    gamePool = [...pokemonList];
+    activeFilters = []; 
     
     if (gamePool.length === 0) {
         alert("Erreur: Liste de Pokémon vide");
@@ -736,52 +751,39 @@ function startStreakGame() {
     if (savedStreak) {
         try {
             const data = JSON.parse(savedStreak);
-            // On reprend si ce n'est pas game over (la suppression se fait au Game Over)
             if (data && (data.status === 'in-progress' || data.status === 'round-won')) {
                 console.log("Reprise de la série...");
                 
-                // Restauration des variables
                 currentStreak = data.streak || 0;
                 targetPokemon = pokemonList.find(p => p.id === data.targetId);
-                
+                accumulatedTime = data.elapsedTime || 0;
+                gameStartTime = Date.now();
+
                 if (!targetPokemon) {
-                    // Si par hasard l'ID n'existe plus (ex: maj fichier csv), on recommence
                     pickRandomPokemon();
                     setupGameUI(false);
                     return;
                 }
 
-                // Si on avait gagné le round précédent sans cliquer sur suivant
                 if (data.status === 'round-won') {
-                    // On simule une fin de partie gagnée pour afficher le bouton "Suivant"
-                    // On restaure juste pour l'affichage
                     setupGameUI(true, data);
-                    
-                    // CORRECTION : Affichage cohérent avec le message de victoire classique (Score au lieu du Nom)
-                    // Évite l'effet "Nom en double" (Grille + Message)
                     showMessage("Bravo ! Endurance : " + currentStreak + " 🔥");
-                    
-                    // On force l'état de fin de round
                     isGameOver = true;
-                    // Affichage des éléments de fin
+                    stopLiveTimer(); // On arrête le chrono si c'est gagné
+                    
                     document.getElementById('keyboard-cont').style.display = 'none';
                     if (validateBtn) validateBtn.style.display = 'none';
                     if (giveupBtn) giveupBtn.style.display = 'none';
                     if (nextStreakBtn) nextStreakBtn.style.display = 'inline-block';
                     
-                    // Image
                     if (targetPokemon && targetPokemon.id) {
                          const type = 'regular';
                          resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
                          resultImg.style.display = 'block';
                     }
-                    
-                    // console log cheat
                     console.log("%c🔥 SOLUTION ENDURANCE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
                     
                 } else {
-                    // Partie purement en cours
-                    // Console log cheat
                     console.log("%c🔥 SOLUTION ENDURANCE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
                     setupGameUI(true, data);
                 }
@@ -792,12 +794,15 @@ function startStreakGame() {
         }
     }
 
-    // Pas de sauvegarde ou nouvelle partie
+    // Nouvelle partie
     currentStreak = 0; 
     savedGrid = [];
     savedGuesses = [];
     currentRow = 0;
     currentGuess = "";
+    
+    accumulatedTime = 0;
+    gameStartTime = Date.now();
     
     pickRandomPokemon();
     setupGameUI(false);
@@ -807,7 +812,9 @@ function startStreakGame() {
 function nextStreakLevel() {
     if (gameMode !== 'streak') return;
     
-    // Reset des variables de jeu pour le nouveau round
+    accumulatedTime += (Date.now() - gameStartTime);
+    gameStartTime = Date.now(); 
+
     savedGrid = [];
     savedGuesses = [];
     currentRow = 0;
@@ -817,7 +824,6 @@ function nextStreakLevel() {
     pickRandomPokemon();
     setupGameUI(false);
     
-    // Sauvegarde immédiate du nouvel état
     saveStreakState();
 }
 
@@ -854,7 +860,6 @@ function pickRandomPokemon() {
     } else {
         let randomIndex;
         let newPokemon;
-        // Eviter de retomber sur le même (simple sécurité)
         let safety = 0;
         do {
             randomIndex = Math.floor(Math.random() * gamePool.length);
@@ -866,7 +871,6 @@ function pickRandomPokemon() {
         lastPlayedId = targetPokemon.id;
     }
 
-    // Affichage de la solution dans la console pour le dev
     if (gameMode === 'streak') {
         console.log("%c🔥 SOLUTION ENDURANCE : " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
     } else {
@@ -895,9 +899,8 @@ function restartCurrentMode() {
     if (gameMode === 'classic') {
         startRandomGame();
     } else if (gameMode === 'streak') {
-        // En cas de recommencement (après défaite), on efface la sauvegarde
         localStorage.removeItem('tusmon_streak_state');
-        startStreakGame(); // On redémarre la série à 0
+        startStreakGame(); 
     } else {
         showMenu();
     }
@@ -934,7 +937,9 @@ function setupGameUI(isResuming = false, gameData = {}) {
     // GESTION DES BADGES ET AFFICHAGES
     if (streakCounter) streakCounter.style.display = 'none';
 
-    // Création/Récupération de l'élément de score IN-GAME
+    // 1. GESTION DU BADGE ET AFFICHAGE SCORE
+    
+    // Elément Score
     let inGameScoreDisplay = document.getElementById('ingame-score-display');
     if (!inGameScoreDisplay) {
         inGameScoreDisplay = document.createElement('div');
@@ -942,22 +947,41 @@ function setupGameUI(isResuming = false, gameData = {}) {
         // Style simple : jaune doré, gras, un peu d'espace
         inGameScoreDisplay.style.color = '#f0b230';
         inGameScoreDisplay.style.fontWeight = 'bold';
-        inGameScoreDisplay.style.marginTop = '5px';
         inGameScoreDisplay.style.fontSize = '1.1rem';
+        inGameScoreDisplay.style.marginTop = '5px';
         inGameScoreDisplay.style.textTransform = 'uppercase';
-        // On l'insère après le modeBadge
+        // On l'ajoute au DOM mais la position sera réglée plus bas
         modeBadge.parentNode.insertBefore(inGameScoreDisplay, modeBadge.nextSibling);
     }
 
+    // Elément Timer (NOUVEAU)
+    let inGameTimerDisplay = document.getElementById('ingame-timer-display');
+    if (!inGameTimerDisplay) {
+        inGameTimerDisplay = document.createElement('div');
+        inGameTimerDisplay.id = 'ingame-timer-display';
+        // STYLE DU TIMER : Identique au Score
+        inGameTimerDisplay.style.color = '#ffffff';
+        inGameTimerDisplay.style.fontWeight = 'bold';
+        inGameTimerDisplay.style.fontSize = '1.1rem';
+        inGameTimerDisplay.style.textTransform = 'uppercase';
+        inGameTimerDisplay.style.marginTop = '5px'; // Même espacement
+        
+        // Insertion
+        modeBadge.parentNode.insertBefore(inGameTimerDisplay, modeBadge.nextSibling);
+    }
+
+    // Reset affichage
+    inGameScoreDisplay.style.display = 'none';
+    inGameTimerDisplay.style.display = 'none';
+    stopLiveTimer();
+
+    // 2. CONFIG SELON MODE
     if (gameMode === 'daily') {
         modeBadge.textContent = "POKÉMON DU JOUR";
         modeBadge.classList.remove('classic');
-        modeBadge.style.background = ""; // Reset gradient
+        modeBadge.style.background = ""; 
         modeBadge.style.backgroundColor = "var(--correct)";
         
-        // Pas de score affiché en daily/classic
-        inGameScoreDisplay.style.display = 'none';
-
         lblGen.textContent = "GÉN:";
         valGen.textContent = ""; 
         valGen.style.textTransform = ""; 
@@ -966,21 +990,28 @@ function setupGameUI(isResuming = false, gameData = {}) {
     } else if (gameMode === 'streak') {
         modeBadge.textContent = "MODE ENDURANCE 🔥";
         modeBadge.classList.add('classic');
-        // Application du dégradé Fire
         modeBadge.style.background = "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)";
         modeBadge.style.border = "none";
 
-        // Affichage du score In-Game
+        // Affichage Score
         inGameScoreDisplay.style.display = 'block';
         inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
 
-        // Mise à jour éventuelle du compteur menu (si existe)
+        // Affichage Timer et démarrage
+        inGameTimerDisplay.style.display = 'block';
+        startLiveTimer();
+
+        // Réorganisation visuelle : Badge -> Timer -> Score
+        // On déplace le timer APRES le badge
+        modeBadge.parentNode.insertBefore(inGameTimerDisplay, modeBadge.nextSibling);
+        // On déplace le score APRES le timer
+        modeBadge.parentNode.insertBefore(inGameScoreDisplay, inGameTimerDisplay.nextSibling);
+
         if (streakCounter) {
             streakCounter.style.display = 'block';
             streakCounter.textContent = "Endurance actuelle : " + currentStreak;
         }
 
-        // Masqué comme le Daily au départ
         lblGen.textContent = "GÉN:";
         valGen.textContent = ""; 
         valGen.style.textTransform = ""; 
@@ -990,11 +1021,8 @@ function setupGameUI(isResuming = false, gameData = {}) {
         // Classic Random
         modeBadge.textContent = "MODE ALÉATOIRE";
         modeBadge.classList.add('classic');
-        modeBadge.style.background = ""; // Reset gradient
+        modeBadge.style.background = ""; 
         modeBadge.style.backgroundColor = "var(--btn-neutral)";
-
-        // Pas de score affiché
-        inGameScoreDisplay.style.display = 'none';
 
         lblGen.textContent = "GÉN:";
         const unselected = allGenerations.filter(g => !activeFilters.includes(g));
@@ -1044,6 +1072,9 @@ function setupGameUI(isResuming = false, gameData = {}) {
              currentRow = savedGrid.length > 0 ? savedGrid.length - 1 : 0;
              // On remet le mot gagnant dans currentGuess pour l'affichage correct
              currentGuess = savedGuesses[currentRow] || targetWord;
+             // Si on reprend un round gagné, on arrête le timer visuel (il est figé)
+             stopLiveTimer();
+             if(inGameTimerDisplay) inGameTimerDisplay.textContent = formatDuration(accumulatedTime);
         } else {
             // Comportement standard pour une partie en cours
             if (currentRow === 0 && savedGrid.length > 0) {
@@ -1421,7 +1452,7 @@ function checkGuess() {
             if (gameMode === 'streak') {
                 currentStreak++;
                 // Mise à jour visuelle du compteur menu (si existant)
-                if (streakCounter) streakCounter.textContent = "Endurance actuelle : " + currentStreak;
+                if (streakCounter) streakCounter.textContent = "Série actuelle : " + currentStreak;
                 
                 // Mise à jour visuelle du score en jeu
                 const inGameScoreDisplay = document.getElementById('ingame-score-display');
@@ -1500,6 +1531,9 @@ function giveUp() {
 function endGame(isVictory, isShiny = false) {
     isGameOver = true;
     
+    // Arrêt du timer visuel car la partie est finie
+    stopLiveTimer();
+    
     keyboardCont.style.display = 'none';
     if (validateBtn) validateBtn.style.display = 'none';
     
@@ -1522,13 +1556,11 @@ function endGame(isVictory, isShiny = false) {
         restartBtn.style.display = "none"; 
         if (shareBtn) shareBtn.style.display = "inline-block";
         
-        // NOUVEAU : Calcul de la durée
         let duration = 0;
         if (isVictory && gameStartTime > 0) {
             duration = Date.now() - gameStartTime;
         }
         
-        // On passe la durée à la fonction de sauvegarde
         saveScoreToFirebase(isVictory, currentRow + 1, duration);
     } 
     else if (gameMode === 'streak') {
@@ -1540,7 +1572,7 @@ function endGame(isVictory, isShiny = false) {
             saveStreakState();
             
             // AJOUT : Sauvegarde du record hebdo même si on continue
-            checkAndSaveWeeklyStreak(currentStreak);
+            checkAndSaveWeeklyStreak(currentStreak, accumulatedTime); // Note: accumulatedTime a été mis à jour dans nextStreakLevel mais ici on sauvegarde le temps jusqu'à la victoire
 
         } else {
             // Défaite en streak : on affiche le score final et le bouton Rejouer
@@ -1550,7 +1582,8 @@ function endGame(isVictory, isShiny = false) {
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
             
             // AJOUT : Sauvegarde finale du record
-            checkAndSaveWeeklyStreak(currentStreak);
+            const finalTime = accumulatedTime + (Date.now() - gameStartTime);
+            checkAndSaveWeeklyStreak(currentStreak, finalTime);
             
             // Suppression de la sauvegarde car perdu
             localStorage.removeItem('tusmon_streak_state');
@@ -1661,6 +1694,11 @@ function loadWeeklyLeaderboard() {
                 const color = '#f0b230'; 
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
+                let timeDisplay = "";
+                if (data.duration) {
+                    timeDisplay = formatDuration(data.duration);
+                }
+
                 const imgHtml = data.photoURL 
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
@@ -1676,6 +1714,7 @@ function loadWeeklyLeaderboard() {
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${iconHtml}</div><span>${userLink}</span></div></td>
+                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             <td style="text-align:right; color:${color}; font-weight:bold;">${data.streak}</td>
                          </tr>`;
                 rank++;
@@ -1690,7 +1729,7 @@ function loadWeeklyLeaderboard() {
 }
 
 // 3. Sauvegarder le score Hebdo (Uniquement si c'est le meilleur score de la semaine)
-function checkAndSaveWeeklyStreak(streakScore) {
+function checkAndSaveWeeklyStreak(streakScore, duration = 0) {
     if (!currentUser || !db) return;
     
     // On ne sauvegarde pas les scores de 0
@@ -1708,6 +1747,7 @@ function checkAndSaveWeeklyStreak(streakScore) {
                     handle: currentUser.displayName || "Joueur",
                     photoURL: currentUser.photoURL || null,
                     streak: streakScore,
+                    duration: duration,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } else {
@@ -1717,6 +1757,7 @@ function checkAndSaveWeeklyStreak(streakScore) {
                 if (streakScore > currentBest) {
                     transaction.update(userRef, {
                         streak: streakScore,
+                        duration: duration, 
                         handle: currentUser.displayName || "Joueur", // Mise à jour du pseudo au cas où
                         photoURL: currentUser.photoURL || null,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()

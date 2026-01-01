@@ -60,8 +60,8 @@ h1 .white-text { color: #ffffff; }
 /* --- NOUVELLE MISE EN PAGE : GRID SYSTEM --- */
 #menu-screen {
     width: 100%;
-    max-width: 1200px; 
-    display: flex;     
+    max-width: 1250px; /* Augmenté légèrement pour accommoder les colonnes plus larges */
+    display: flex;     /* Par défaut (géré par le script show/hide) */
     justify-content: center;
     margin: 0 auto;
 }
@@ -69,7 +69,7 @@ h1 .white-text { color: #ffffff; }
 /* La grille interne */
 #menu-layout-grid {
     display: flex;
-    flex-direction: column; 
+    flex-direction: column; /* Mobile first : colonne unique */
     width: 100%;
     gap: 20px;
     align-items: center;
@@ -98,11 +98,16 @@ h1 .white-text { color: #ffffff; }
 @media (min-width: 1100px) {
     #menu-layout-grid {
         display: grid;
-        grid-template-columns: 300px 1fr 300px; 
-        align-items: start; 
+        /* Colonne 1 (Classement) : passée de 300px à 345px (+15%)
+           Colonne 2 (Jeu) : prend tout l'espace restant (1fr)
+           Colonne 3 (Admin) : 300px
+        */
+        grid-template-columns: 345px 1fr 300px; 
+        align-items: start; /* Aligne les blocs en haut */
         gap: 30px;
     }
 
+    /* Ajustement des conteneurs de colonnes */
     .col-center {
         display: flex;
         flex-direction: column;
@@ -114,12 +119,13 @@ h1 .white-text { color: #ffffff; }
 @media (max-width: 1099px) {
     .layout-column {
         width: 100%;
-        max-width: 500px; 
+        max-width: 575px; /* Augmenté de 500px à 575px (+15%) */
     }
 
-    .col-center { order: 1; } 
-    .col-left { order: 2; }   
-    .col-right { order: 3; }  
+    /* On force l'ordre d'affichage sur mobile avec Flexbox Order */
+    .col-center { order: 1; } /* Jeu en premier */
+    .col-left { order: 2; }   /* Classement en deuxième */
+    .col-right { order: 3; }  /* Admin en dernier */
 }
 
 /* --- ELEMENTS INTERNES (Titres, Boutons, etc.) --- */
@@ -180,23 +186,21 @@ h1 .white-text { color: #ffffff; }
     vertical-align: middle; 
 }
 
+/* Suppression de la bordure pour la dernière ligne */
 #leaderboard-container tr:last-child td,
 #weekly-leaderboard-container tr:last-child td { 
     border-bottom: none; 
 }
 
 /* STYLE DES DATES */
-/* Uniformisation du style pour le sous-titre de la date du jour et de la semaine */
 #leaderboard-date,
-#leaderboard-date-subtitle,
 #weekly-date {
-    text-align: center !important;
-    font-size: 0.95rem !important;
-    color: #ddd !important;
-    margin-bottom: 10px !important;
+    text-align: center;
+    font-size: 0.85rem !important;
+    color: #888 !important;
+    margin-bottom: 2px !important;
     margin-top: -5px !important;
-    font-style: normal !important;
-    font-weight: normal !important;
+    font-style: italic !important;
 }
 
 .profile-pic { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
