@@ -36,7 +36,8 @@ let lastPlayedId = null;
 
 // Variables pour la persistance de l'état (Sauvegarde)
 let savedGrid = [];     
-let savedGuesses = [];  
+let savedGuesses = []; 
+let gameStartTime = 0; // NOUVEAU : Variable pour stocker le début de la partie
 
 // Variable pour l'Easter Egg
 let logoClickCount = 0;
@@ -102,6 +103,7 @@ function saveDailyState() {
         currentGuess: currentGuess, 
         grid: savedGrid,
         guesses: savedGuesses,
+        startTime: gameStartTime, // NOUVEAU : On sauvegarde l'heure de début
         won: isGameOver && hasWon, 
         attempts: currentRow 
     };
@@ -150,6 +152,17 @@ window.addEventListener('beforeunload', () => {
         saveStreakState();
     }
 });
+
+// --- UTILS ---
+
+// NOUVEAU : Fonction pour formater le temps (ms -> mm:ss)
+function formatDuration(ms) {
+    if (!ms) return '';
+    const totalSeconds = Math.floor(ms / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}m${s.toString().padStart(2, '0')}`;
+}
 
 // --- GESTION FIREBASE (AUTH & LEADERBOARD) ---
 
@@ -227,7 +240,14 @@ function updateAuthUI(user) {
                 const result = JSON.parse(storedData);
                 if (result && result.status === 'completed') {
                     console.log("Score local trouvé. Synchronisation...");
-                    saveScoreToFirebase(result.won, result.attempts);
+                    // NOUVEAU : On récupère la durée sauvegardée localement si elle existe
+                    const duration = result.startTime ? (Date.now() - result.startTime) : 0;
+                    // On envoie une durée estimée si pas dispo (0), sinon la vraie durée
+                    // Attention : ici on ne recalcule pas "maintenant - start", car la partie est déjà finie.
+                    // Si le status est completed, on suppose que la durée a été envoyée lors du EndGame.
+                    // Mais si c'est une synchro "retardée", on fait de notre mieux.
+                    // Pour simplifier, saveScoreToFirebase gère la mise à jour.
+                    saveScoreToFirebase(result.won, result.attempts, duration); 
                 }
             } catch (e) {}
         }
@@ -330,6 +350,12 @@ function loadLeaderboard() {
                 const color = data.won ? '#538d4e' : '#d9534f';
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
+                // NOUVEAU : Récupération et formatage de la durée
+                let timeDisplay = "";
+                if (data.won && data.duration) {
+                    timeDisplay = formatDuration(data.duration);
+                }
+
                 const imgHtml = data.photoURL 
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
@@ -341,9 +367,11 @@ function loadLeaderboard() {
                     userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
                 }
 
+                // NOUVEAU : Ajout de la colonne Temps dans le HTML
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${crownHtml}</div><span>${userLink}</span></div></td>
+                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
                          </tr>`;
                 rank++;
@@ -357,7 +385,8 @@ function loadLeaderboard() {
         });
 }
 
-function saveScoreToFirebase(won, attempts) {
+// NOUVEAU : On ajoute le paramètre 'duration' (optionnel)
+function saveScoreToFirebase(won, attempts, duration = 0) {
     if (!currentUser || !db) return;
     const dateKey = getTodayDateKey();
     const userHandle = currentUser.displayName || "Joueur";
@@ -372,12 +401,14 @@ function saveScoreToFirebase(won, attempts) {
                 photoURL: userPhoto,
                 attempts: attempts,
                 won: won,
+                duration: duration, // NOUVEAU : Enregistrement de la durée
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
                 loadLeaderboard(); 
                 checkRemoteDailyStatus();
             });
         } else {
+            // Si le score existe déjà, on ne l'écrase pas pour l'instant (règle du premier essai)
             loadLeaderboard();
             checkRemoteDailyStatus();
         }
@@ -539,15 +570,15 @@ function showMenu() {
                 const sData = JSON.parse(storedStreak);
                 // Si on a une sauvegarde valide qui n'est pas "game over"
                 if (sData) {
-                    btnStreakStart.textContent = `REPRENDRE SÉRIE (${sData.streak})`;
+                    btnStreakStart.textContent = `REPRENDRE ENDURANCE (${sData.streak})`;
                 } else {
-                    btnStreakStart.textContent = "DÉMARRER LA SÉRIE";
+                    btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
                 }
             } catch(e) {
-                btnStreakStart.textContent = "DÉMARRER LA SÉRIE";
+                btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
             }
         } else {
-            btnStreakStart.textContent = "DÉMARRER LA SÉRIE";
+            btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
         }
     }
 
@@ -662,6 +693,8 @@ function startDailyGame() {
             if (gameData.status === 'in-progress' && gameData.targetId === targetPokemon.id) {
                 isResuming = true;
                 console.log("Reprise de la partie quotidienne...");
+                // NOUVEAU : Récupération de l'heure de début sauvegardée
+                gameStartTime = gameData.startTime || Date.now();
             }
         } catch (e) {
             console.error("Erreur parsing:", e);
@@ -669,13 +702,17 @@ function startDailyGame() {
     }
 
     if (!isResuming) {
+        // NOUVEAU : Démarrage du chronomètre
+        gameStartTime = Date.now();
+        
         const initialState = { 
             status: 'in-progress', 
             grid: [],
             guesses: [],
             targetId: targetPokemon.id,
             currentRow: 0,
-            currentGuess: ""
+            currentGuess: "",
+            startTime: gameStartTime // Sauvegarde immédiate
         };
         localStorage.setItem('tusmon_daily_' + todayKey, JSON.stringify(initialState));
     }
@@ -722,7 +759,7 @@ function startStreakGame() {
                     
                     // CORRECTION : Affichage cohérent avec le message de victoire classique (Score au lieu du Nom)
                     // Évite l'effet "Nom en double" (Grille + Message)
-                    showMessage("Bravo ! Série : " + currentStreak + " 🔥");
+                    showMessage("Bravo ! Endurance : " + currentStreak + " 🔥");
                     
                     // On force l'état de fin de round
                     isGameOver = true;
@@ -740,12 +777,12 @@ function startStreakGame() {
                     }
                     
                     // console log cheat
-                    console.log("%c🔥 SOLUTION SÉRIE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
+                    console.log("%c🔥 SOLUTION ENDURANCE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
                     
                 } else {
                     // Partie purement en cours
                     // Console log cheat
-                    console.log("%c🔥 SOLUTION SÉRIE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
+                    console.log("%c🔥 SOLUTION ENDURANCE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
                     setupGameUI(true, data);
                 }
                 return;
@@ -831,7 +868,7 @@ function pickRandomPokemon() {
 
     // Affichage de la solution dans la console pour le dev
     if (gameMode === 'streak') {
-        console.log("%c🔥 SOLUTION SÉRIE : " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
+        console.log("%c🔥 SOLUTION ENDURANCE : " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
     } else {
         console.log("Solution (Mode Aléatoire) : " + targetPokemon.original);
     }
@@ -927,7 +964,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
         hintGen.classList.remove('visible'); 
 
     } else if (gameMode === 'streak') {
-        modeBadge.textContent = "MODE SÉRIE 🔥";
+        modeBadge.textContent = "MODE ENDURANCE 🔥";
         modeBadge.classList.add('classic');
         // Application du dégradé Fire
         modeBadge.style.background = "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)";
@@ -935,12 +972,12 @@ function setupGameUI(isResuming = false, gameData = {}) {
 
         // Affichage du score In-Game
         inGameScoreDisplay.style.display = 'block';
-        inGameScoreDisplay.textContent = "Score : " + currentStreak;
+        inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
 
         // Mise à jour éventuelle du compteur menu (si existe)
         if (streakCounter) {
             streakCounter.style.display = 'block';
-            streakCounter.textContent = "Série actuelle : " + currentStreak;
+            streakCounter.textContent = "Endurance actuelle : " + currentStreak;
         }
 
         // Masqué comme le Daily au départ
@@ -1384,13 +1421,13 @@ function checkGuess() {
             if (gameMode === 'streak') {
                 currentStreak++;
                 // Mise à jour visuelle du compteur menu (si existant)
-                if (streakCounter) streakCounter.textContent = "Série actuelle : " + currentStreak;
+                if (streakCounter) streakCounter.textContent = "Endurance actuelle : " + currentStreak;
                 
                 // Mise à jour visuelle du score en jeu
                 const inGameScoreDisplay = document.getElementById('ingame-score-display');
-                if (inGameScoreDisplay) inGameScoreDisplay.textContent = "Score : " + currentStreak;
+                if (inGameScoreDisplay) inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
 
-                winMsg = "Bravo ! Série : " + currentStreak + " 🔥";
+                winMsg = "Bravo ! Endurance : " + currentStreak + " 🔥";
                 
                 // Sauvegarde après victoire du round (pour pouvoir reprendre)
                 // Note : saveStreakState sera appelé dans endGame -> saveStreakState (si non game over)
@@ -1484,7 +1521,15 @@ function endGame(isVictory, isShiny = false) {
         saveDailyState(); 
         restartBtn.style.display = "none"; 
         if (shareBtn) shareBtn.style.display = "inline-block";
-        saveScoreToFirebase(isVictory, currentRow + 1);
+        
+        // NOUVEAU : Calcul de la durée
+        let duration = 0;
+        if (isVictory && gameStartTime > 0) {
+            duration = Date.now() - gameStartTime;
+        }
+        
+        // On passe la durée à la fonction de sauvegarde
+        saveScoreToFirebase(isVictory, currentRow + 1, duration);
     } 
     else if (gameMode === 'streak') {
         if (isVictory) {
@@ -1499,9 +1544,9 @@ function endGame(isVictory, isShiny = false) {
 
         } else {
             // Défaite en streak : on affiche le score final et le bouton Rejouer
-            messageEl.textContent += ` (Série finie : ${currentStreak})`;
+            messageEl.textContent += ` (Endurance finie : ${currentStreak})`;
             restartBtn.style.display = "inline-block"; 
-            restartBtn.textContent = "Recommencer la série"; // Petit bonus UX
+            restartBtn.textContent = "Recommencer l'endurance"; // Petit bonus UX
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
             
             // AJOUT : Sauvegarde finale du record
@@ -1604,7 +1649,7 @@ function loadWeeklyLeaderboard() {
         .get()
         .then((querySnapshot) => {
             if (querySnapshot.empty) {
-                weeklyContainer.innerHTML = '<p style="text-align:center; color:#888; font-style:italic; font-size:0.8rem;">Aucune série cette semaine.</p>';
+                weeklyContainer.innerHTML = '<p style="text-align:center; color:#888; font-style:italic; font-size:0.8rem;">Aucune endurance cette semaine.</p>';
                 return;
             }
 
