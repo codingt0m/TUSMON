@@ -113,9 +113,6 @@ h1 .white-text { color: #ffffff; }
         flex-direction: column;
         gap: 20px;
     }
-    
-    /* Si la colonne de droite est vide (pas admin), la grille garde l'espace 
-       pour que le jeu reste au centre visuellement */
 }
 
 /* --- VERSION MOBILE / TABLETTE (ORDRE D'AFFICHAGE) --- */
@@ -163,7 +160,7 @@ h1 .white-text { color: #ffffff; }
     border: 1px solid #333;
 }
 
-/* --- MODIFICATION ICI : On applique le style aux DEUX conteneurs --- */
+/* --- CLASSEMENTS (JOUR & HEBDO) --- */
 #leaderboard-container, 
 #weekly-leaderboard-container {
     background-color: #222;
@@ -174,24 +171,51 @@ h1 .white-text { color: #ffffff; }
     border: 1px solid var(--border);
 }
 
-#leaderboard-container table {
+#leaderboard-container table,
+#weekly-leaderboard-container table {
     width: 100%;
     font-size: 0.9rem;
     text-align: left;
     border-collapse: collapse;
 }
 
-#leaderboard-container td {
+#leaderboard-container td,
+#weekly-leaderboard-container td {
     padding: 6px 4px;
     border-bottom: 1px solid #333;
     vertical-align: middle; 
+}
+
+/* Suppression de la bordure pour la dernière ligne */
+#leaderboard-container tr:last-child td,
+#weekly-leaderboard-container tr:last-child td { 
+    border-bottom: none; 
+}
+
+/* STYLE DES DATES (NOUVEAU) */
+/* Permet d'uniformiser le style "sous-titre" des dates */
+#leaderboard-date,
+#weekly-date {
+    text-align: center;
+    font-size: 0.85rem !important;
+    color: #888 !important;
+    margin-bottom: 2px !important;
+    margin-top: -5px !important;
+    font-style: italic !important;
 }
 
 .profile-pic { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
 .profile-pic-wrapper { position: relative; width: 24px; height: 24px; margin-right: 8px; }
 .crown-emoji { position: absolute; top: -16px; left: 10px; font-size: 1.08rem; z-index: 10; pointer-events: none; transform: rotate(25deg); }
 .user-cell { display: flex; align-items: center; }
-#leaderboard-container tr:last-child td { border-bottom: none; }
+
+/* SEPARATEUR */
+.leaderboard-separator {
+    height: 1px;
+    background-color: #333;
+    margin: 15px 0;
+    width: 100%;
+}
 
 /* FILTRES GEN */
 #gen-filters {
@@ -284,7 +308,6 @@ h1 .white-text { color: #ffffff; }
     gap: 2px;
     margin: 0 auto 10px auto; 
     width: fit-content; 
-    /* Calcul sécurisé pour la largeur */
     max-width: min(350px, calc(var(--cols, 5) * 55px)); 
     justify-content: center;
 }
@@ -361,7 +384,7 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
 
 /* --- MODE STREAK --- */
 .menu-btn.streak {
-    background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045); /* Un dégradé "feu" */
+    background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045);
     color: white;
     width: 100%;
 }
@@ -372,7 +395,7 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
     border-radius: 4px;
     font-size: 0.9rem;
     font-weight: bold;
-    color: #f0b230; /* Jaune doré */
+    color: #f0b230;
     border: 1px solid #555;
     animation: pop 0.5s ease;
 }
@@ -393,28 +416,3 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
 }
 .admin-popup-card { max-width: 400px !important; }
 .menu-section-inner { display: flex; flex-direction: column; gap: 10px; }
-
-/* DANS index.css (à la fin du fichier) */
-
-.leaderboard-separator {
-    height: 1px;
-    background-color: #333;
-    margin: 15px 0;
-    width: 100%;
-}
-
-/* On s'assure que le tableau hebdo ressemble au quotidien */
-#weekly-leaderboard-container table {
-    width: 100%;
-    font-size: 0.9rem;
-    text-align: left;
-    border-collapse: collapse;
-}
-
-#weekly-leaderboard-container td {
-    padding: 6px 4px;
-    border-bottom: 1px solid #333;
-    vertical-align: middle; 
-}
-
-#weekly-leaderboard-container tr:last-child td { border-bottom: none; }
