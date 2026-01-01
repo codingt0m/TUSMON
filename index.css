@@ -163,7 +163,9 @@ h1 .white-text { color: #ffffff; }
     border: 1px solid #333;
 }
 
-#leaderboard-container {
+/* --- MODIFICATION ICI : On applique le style aux DEUX conteneurs --- */
+#leaderboard-container, 
+#weekly-leaderboard-container {
     background-color: #222;
     padding: 10px;
     border-radius: 5px;

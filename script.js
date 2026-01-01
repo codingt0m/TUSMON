@@ -184,10 +184,24 @@ function loginWithTwitter() {
         });
 }
 
+
+// [Insérer cette nouvelle fonction sous la fonction loginWithTwitter existante]
+function logout() {
+    if (!auth) return;
+    auth.signOut().then(() => {
+        console.log("Déconnecté");
+        // L'UI se mettra à jour automatiquement grâce au listener onAuthStateChanged
+    }).catch((error) => {
+        console.error("Erreur de déconnexion :", error);
+    });
+}
+
+// [Remplacer la fonction updateAuthUI existante par celle-ci]
 function updateAuthUI(user) {
     currentUser = user;
     const btnLogin = document.getElementById('btn-twitter-login');
     const txtInfo = document.getElementById('user-info');
+    const btnLogout = document.getElementById('btn-logout'); // Nouveau
     const adminSection = document.getElementById('admin-section');
 
     if (user) {
@@ -196,6 +210,9 @@ function updateAuthUI(user) {
         txtInfo.style.display = 'block';
         txtInfo.innerHTML = `Connecté : <strong>${handle}</strong>`;
         
+        // Afficher le bouton déconnexion
+        if (btnLogout) btnLogout.style.display = 'block';
+
         if (handle === '@suedlemot') {
             if (adminSection) adminSection.style.display = 'flex';
         } else {
@@ -220,9 +237,11 @@ function updateAuthUI(user) {
     } else {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
+        // Masquer le bouton déconnexion
+        if (btnLogout) btnLogout.style.display = 'none';
+        
         if (adminSection) adminSection.style.display = 'none';
         
-        // On charge quand même les classements en mode anonyme
         loadLeaderboard();
         loadWeeklyLeaderboard();
     }

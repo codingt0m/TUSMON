@@ -19,15 +19,21 @@
             
             <div class="layout-column col-left">
                 <div id="leaderboard-section" class="menu-card">
-                    <div class="menu-title">Classement du Jour 🏆</div>
-                    <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
-
                     <div id="auth-section">
                         <button id="btn-twitter-login" class="menu-btn">
                             Se connecter avec Twitter
                         </button>
                         <p id="user-info" style="display:none;"></p>
+                        
+                        <div id="btn-logout" onclick="logout()" style="display:none; cursor:pointer; color:#888; font-size:0.75rem; text-decoration:underline; margin-top:8px; text-align:center;">
+                            Se déconnecter
+                        </div>
                     </div>
+
+                    <div class="leaderboard-separator"></div>
+
+                    <div class="menu-title">Classement du Jour 🏆</div>
+                    <div id="leaderboard-date" style="text-align:center; font-size:0.85rem; color:#888; margin-bottom:2px; margin-top:-5px; font-style: italic;"></div>
 
                     <div id="leaderboard-container">
                         <p style="text-align:center; color:#666; font-size:0.8rem;">Chargement...</p>
