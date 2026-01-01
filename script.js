@@ -781,11 +781,9 @@ function startStreakGame() {
                          resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
                          resultImg.style.display = 'block';
                     }
-                    console.log("%c🔥 SOLUTION ENDURANCE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
-                    
+                   
                 } else {
-                    console.log("%c🔥 SOLUTION ENDURANCE (Reprise): " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
-                    setupGameUI(true, data);
+                   
                 }
                 return;
             }
@@ -871,11 +869,7 @@ function pickRandomPokemon() {
         lastPlayedId = targetPokemon.id;
     }
 
-    if (gameMode === 'streak') {
-        console.log("%c🔥 SOLUTION ENDURANCE : " + targetPokemon.original, "color: #f0b230; font-weight: bold; font-size: 1.2em;");
-    } else {
-        console.log("Solution (Mode Aléatoire) : " + targetPokemon.original);
-    }
+    
 }
 
 function getDailyPokemonIndex(listLength) {
