@@ -26,7 +26,7 @@ let currentGuess = "";
 let currentRow = 0;
 let isGameOver = false;
 let isProcessing = false;
-let gameMode = 'daily'; // 'daily', 'classic', 'streak'
+let gameMode = 'daily'; // 'daily', 'classic', 'streak', 'test'
 let currentStreak = 0; // Score de chaîne
 let knownLetters = []; 
 let fixedLength = 0; 
@@ -320,6 +320,44 @@ function checkRemoteDailyStatus() {
     }).catch(err => console.error("Erreur vérif score distant:", err));
 }
 
+// --- FONCTION ADMIN : SUPPRIMER UN SCORE ---
+function deleteScore(type, userId) {
+    if (!currentUser || !db) return;
+    
+    // Sécurité basique côté client
+    if (currentUser.displayName !== '@suedlemot') {
+        alert("Action non autorisée.");
+        return;
+    }
+
+    if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer ce score définitivement ?")) {
+        return;
+    }
+
+    let docRef; 
+    
+    if (type === 'daily') {
+        const dateKey = getTodayDateKey();
+        docRef = db.collection('daily_scores').doc(dateKey).collection('players').doc(userId);
+    } else if (type === 'weekly') {
+        const weekKey = getCurrentWeekKey();
+        docRef = db.collection('weekly_streaks').doc(weekKey).collection('players').doc(userId);
+    } else {
+        return;
+    }
+
+    // L'action de suppression réelle sur la base de données
+    docRef.delete().then(() => {
+        console.log("Score supprimé avec succès de la BDD !");
+        // Mise à jour de l'affichage
+        loadLeaderboard();
+        loadWeeklyLeaderboard();
+    }).catch((error) => {
+        console.error("Erreur lors de la suppression : ", error);
+        alert("Erreur lors de la suppression.");
+    });
+}
+
 function loadLeaderboard() {
     if (!db) return;
 
@@ -352,11 +390,14 @@ function loadLeaderboard() {
     const dateKey = getTodayDateKey();
     const leaderboardDiv = document.getElementById('leaderboard-container');
     
+    // Vérification Admin
+    const isAdmin = currentUser && currentUser.displayName === '@suedlemot';
+
     db.collection('daily_scores').doc(dateKey).collection('players')
         .orderBy('won', 'desc') 
         .orderBy('attempts', 'asc') 
         .orderBy('timestamp', 'asc') 
-        .limit(5)
+        .limit(20) // Augmenté un peu pour voir plus de monde
         .get()
         .then((querySnapshot) => {
             if (querySnapshot.empty) {
@@ -388,11 +429,20 @@ function loadLeaderboard() {
                     userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
                 }
 
+                // Bouton Delete (Admin seulement)
+                let deleteBtn = "";
+                if (isAdmin) {
+                    deleteBtn = `<td style="width:20px; text-align:right;">
+                        <button class="btn-delete-score" onclick="deleteScore('daily', '${doc.id}')" title="Supprimer">✕</button>
+                    </td>`;
+                }
+
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${crownHtml}</div><span>${userLink}</span></div></td>
                             <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
+                            ${deleteBtn}
                          </tr>`;
                 rank++;
             });
@@ -1666,7 +1716,9 @@ function loadWeeklyLeaderboard() {
     const weeklyDateLabel = document.getElementById('weekly-date');
     const weekKey = getCurrentWeekKey();
 
-    // Afficher la date de la semaine
+    // Vérification Admin
+    const isAdmin = currentUser && currentUser.displayName === '@suedlemot';
+
     if (weeklyDateLabel) {
         const d = new Date(weekKey);
         const options = { day: 'numeric', month: 'short' };
@@ -1674,9 +1726,9 @@ function loadWeeklyLeaderboard() {
     }
 
     db.collection('weekly_streaks').doc(weekKey).collection('players')
-        .orderBy('streak', 'desc') // On trie par plus grosse série
-        .orderBy('timestamp', 'asc') // En cas d'égalité, le premier l'emporte
-        .limit(5)
+        .orderBy('streak', 'desc') 
+        .orderBy('timestamp', 'asc') 
+        .limit(20)
         .get()
         .then((querySnapshot) => {
             if (querySnapshot.empty) {
@@ -1688,7 +1740,6 @@ function loadWeeklyLeaderboard() {
             let rank = 1;
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                // Couleur : Or pour la série
                 const color = '#f0b230'; 
                 const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
                 
@@ -1701,12 +1752,19 @@ function loadWeeklyLeaderboard() {
                     ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
                 
-                // Petite flamme pour le premier
                 let iconHtml = rank === 1 ? '<span class="crown-emoji">🔥</span>' : '';
                 
                 let userLink = data.handle || 'Anonyme';
                 if (data.handle && data.handle.startsWith('@')) {
-                    userLink = data.handle; // On garde simple pour l'affichage
+                    userLink = data.handle; 
+                }
+
+                // Bouton Delete (Admin seulement)
+                let deleteBtn = "";
+                if (isAdmin) {
+                    deleteBtn = `<td style="width:20px; text-align:right;">
+                        <button class="btn-delete-score" onclick="deleteScore('weekly', '${doc.id}')" title="Supprimer">✕</button>
+                    </td>`;
                 }
 
                 html += `<tr style="${styles}">
@@ -1714,6 +1772,7 @@ function loadWeeklyLeaderboard() {
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${iconHtml}</div><span>${userLink}</span></div></td>
                             <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             <td style="text-align:right; color:${color}; font-weight:bold;">${data.streak}</td>
+                            ${deleteBtn}
                          </tr>`;
                 rank++;
             });
@@ -1769,6 +1828,4 @@ function checkAndSaveWeeklyStreak(streakScore, duration = 0) {
     }).catch((err) => {
         console.error("Erreur sauvegarde hebdo:", err);
     });
-
-    
 }

@@ -441,3 +441,17 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
     color: #555;
     font-weight: normal;
 }
+/* --- BOUTON SUPPRESSION SCORE (ADMIN) --- */
+.btn-delete-score {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 5px;
+    transition: color 0.2s;
+}
+
+.btn-delete-score:hover {
+    color: var(--btn-danger);
+}
