@@ -445,11 +445,12 @@ function loadLeaderboard() {
                     </td>`;
                 }
 
+                // MODIFICATION : Inversion colonnes Score et Temps
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${crownHtml}</div><span>${userLink}</span></div></td>
-                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
+                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             ${deleteBtn}
                          </tr>`;
                 rank++;
@@ -1795,11 +1796,12 @@ function loadWeeklyLeaderboard() {
                     </td>`;
                 }
 
+                // MODIFICATION : Inversion colonnes Streak et Temps
                 html += `<tr style="${styles}">
                             <td style="width:20px;">#${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${iconHtml}</div><span>${userLink}</span></div></td>
-                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             <td style="text-align:right; color:${color}; font-weight:bold;">${data.streak}</td>
+                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             ${deleteBtn}
                          </tr>`;
                 rank++;
@@ -1855,5 +1857,47 @@ function checkAndSaveWeeklyStreak(streakScore, duration = 0) {
         loadWeeklyLeaderboard(); // Rafraîchir l'affichage
     }).catch((err) => {
         console.error("Erreur sauvegarde hebdo:", err);
+    });
+}
+
+// --- FONCTION ADMIN : RESET JOUEUR ---
+function resetPlayerDaily() {
+    // Vérification sécurité
+    if (!currentUser || currentUser.displayName !== '@suedlemot') {
+        alert("Accès refusé.");
+        return;
+    }
+
+    const uidInput = document.getElementById('admin-reset-uid');
+    const targetUid = uidInput.value.trim();
+
+    if (!targetUid) {
+        alert("Veuillez entrer l'UID du joueur à réinitialiser.");
+        return;
+    }
+
+    if (!confirm("⚠️ ATTENTION : Cela va supprimer le score de ce joueur pour aujourd'hui et lui permettre de rejouer.\n\nConfirmer ?")) {
+        return;
+    }
+
+    const dateKey = getTodayDateKey();
+    
+    // Suppression dans la collection daily_scores
+    db.collection('daily_scores').doc(dateKey).collection('players').doc(targetUid).delete()
+    .then(() => {
+        alert("✅ Joueur réinitialisé avec succès !\nIl doit rafraîchir sa page pour rejouer.");
+        uidInput.value = ""; // Vider le champ
+        
+        // Si l'admin se reset lui-même, on nettoie aussi le localStorage pour effet immédiat
+        if (targetUid === currentUser.uid) {
+            localStorage.removeItem('tusmon_daily_' + dateKey);
+            window.location.reload();
+        } else {
+            loadLeaderboard(); // Mise à jour du classement affiché
+        }
+    })
+    .catch((error) => {
+        console.error("Erreur lors du reset : ", error);
+        alert("Erreur : " + error.message);
     });
 }

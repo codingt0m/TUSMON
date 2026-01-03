@@ -109,6 +109,10 @@
     <div id="game-area">
         <div id="info-bar">
             <div id="mode-badge">POKÉMON DU JOUR</div>
+            
+            <div id="ingame-timer-display"></div>
+            <div id="ingame-score-display"></div>
+            
             <div id="hint-box">
                 <div id="hint-gen" class="hint-tag" onmouseenter="showGenPopup()" onmouseleave="hideGenPopup()">
                     <span class="hint-label" id="lbl-gen">GÉN:</span><span class="hint-value" id="val-gen"></span>
@@ -164,7 +168,7 @@
                     Lancer une partie avec un ID spécifique
                 </p>
                 
-                <input type="number" id="admin-poke-id" class="admin-input" placeholder="Entrer ID">
+                <input type="number" id="admin-poke-id" class="admin-input" placeholder="Entrer ID Pokémon">
                 
                 <button class="menu-btn" onclick="startTestGame()" style="background-color: #f0b230; color: #000;">
                     LANCER LE TEST
@@ -172,9 +176,15 @@
             </div>
 
             <div class="menu-section" style="border-top: 1px solid #333; margin-top: 15px; padding-top: 15px;">
-                <div class="menu-title">Outils de Gestion</div>
-                <button class="mini-btn" disabled style="width:100%; padding:10px; background-color:#333; color:#666; cursor:not-allowed;">
-                    Réinitialiser le Jour
+                <div class="menu-title">Gestion Joueurs</div>
+                <p style="text-align:center; font-size:0.85rem; color:#aaa; margin-bottom:10px;">
+                    Autoriser un joueur à rejouer (Supprime son score du jour)
+                </p>
+                
+                <input type="text" id="admin-reset-uid" class="admin-input" placeholder="Coller l'UID du joueur">
+                
+                <button class="menu-btn" onclick="resetPlayerDaily()" style="background-color: #d9534f;">
+                    RÉINITIALISER JOUEUR ↺
                 </button>
             </div>
 

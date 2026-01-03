@@ -287,8 +287,27 @@ h1 .white-text { color: #ffffff; }
 }
 #mode-badge.classic { background-color: var(--btn-neutral); }
 
+/* STYLES POUR LE TIMER ET LE SCORE EN JEU */
+#ingame-timer-display {
+    font-variant-numeric: tabular-nums; /* Empêche les chiffres de bouger */
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ddd;
+    margin-top: 2px;
+    display: none; /* Affichage géré par le JS */
+}
+
+#ingame-score-display {
+    font-size: 1rem;
+    color: #f0b230;
+    font-weight: bold;
+    margin-top: 2px;
+    display: none; /* Affichage géré par le JS */
+}
+
 #hint-box {
     display: flex; gap: 10px; font-size: 0.9rem; min-height: 25px; flex-wrap: wrap; justify-content: center;
+    margin-top: 5px;
 }
 .hint-tag {
     background-color: var(--hint-bg); padding: 4px 12px; border-radius: 12px; border: 1px solid var(--border);
