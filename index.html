@@ -158,20 +158,27 @@
                 </p>
             </div>
 
-            <div class="menu-section">
-                <div class="menu-title">Outils de Gestion</div>
-                <p style="text-align:center; font-size:0.85rem; color:#aaa; font-style:italic; margin-bottom:10px;">
-                    Fonctionnalités en cours de développement
+            <div class="menu-section" style="border-top: 1px solid #333; margin-top: 15px; padding-top: 15px;">
+                <div class="menu-title" style="color: #f0b230;">Zone de Test</div>
+                <p style="text-align:center; font-size:0.85rem; color:#aaa; margin-bottom:10px;">
+                    Lancer une partie avec un ID spécifique<br>(ex: 122 pour M. Mime)
                 </p>
-                <button class="mini-btn" disabled style="width:100%; padding:10px; background-color:#333; color:#666; cursor:not-allowed;">
-                    Réinitialiser le Jour
-                </button>
-                <button class="mini-btn" disabled style="width:100%; padding:10px; margin-top:5px; background-color:#333; color:#666; cursor:not-allowed;">
-                    Gérer les Utilisateurs
+                
+                <input type="number" id="admin-poke-id" class="admin-input" placeholder="Entrer ID (ex: 233)">
+                
+                <button class="menu-btn" onclick="startTestGame()" style="background-color: #f0b230; color: #000;">
+                    LANCER LE TEST
                 </button>
             </div>
 
-            <div class="menu-section">
+            <div class="menu-section" style="border-top: 1px solid #333; margin-top: 15px; padding-top: 15px;">
+                <div class="menu-title">Outils de Gestion</div>
+                <button class="mini-btn" disabled style="width:100%; padding:10px; background-color:#333; color:#666; cursor:not-allowed;">
+                    Réinitialiser le Jour
+                </button>
+            </div>
+
+            <div class="menu-section" style="margin-top: 20px;">
                 <button class="action-btn" onclick="closeAdminPanel()" style="width:100%; background-color: var(--btn-neutral);">
                     RETOUR AU MENU PRINCIPAL
                 </button>

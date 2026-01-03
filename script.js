@@ -900,7 +900,44 @@ function restartCurrentMode() {
     }
 }
 
-// --- CONFIGURATION UI ---
+// --- FONCTION ADMIN : LANCER UN TEST ---
+function startTestGame() {
+    const input = document.getElementById('admin-poke-id');
+    const idToTest = input.value.trim();
+    
+    if (!idToTest) {
+        alert("Veuillez entrer un ID !");
+        return;
+    }
+
+    // Recherche du Pokémon par ID (comparaison souple string/number)
+    const found = pokemonList.find(p => p.id == idToTest);
+    
+    if (!found) {
+        alert("Pokémon introuvable avec l'ID : " + idToTest);
+        return;
+    }
+
+    console.log("Lancement du test pour : ", found);
+
+    // Configuration de la partie de test
+    gameMode = 'test';
+    targetPokemon = found;
+    activeFilters = []; // Pas de filtres
+    
+    // Reset des états
+    savedGrid = [];
+    savedGuesses = [];
+    currentRow = 0;
+    currentGuess = "";
+    isGameOver = false;
+    
+    // Fermer l'admin et lancer l'UI
+    closeAdminPanel();
+    setupGameUI(false);
+}
+
+// --- MISE À JOUR DE L'UI (Modifiée pour inclure le mode TEST) ---
 function setupGameUI(isResuming = false, gameData = {}) {
     menuScreen.style.display = 'none';
     gameArea.style.display = 'flex';
@@ -920,7 +957,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
     menuReturnBtn.style.display = "inline-block";
     validateBtn.style.display = "inline-block";
     
-    // Le bouton next est caché par défaut
     if (nextStreakBtn) nextStreakBtn.style.display = "none";
     
     // Reset des indices
@@ -931,43 +967,15 @@ function setupGameUI(isResuming = false, gameData = {}) {
     // GESTION DES BADGES ET AFFICHAGES
     if (streakCounter) streakCounter.style.display = 'none';
 
-    // 1. GESTION DU BADGE ET AFFICHAGE SCORE
-    
-    // Elément Score
+    // Nettoyage éléments score/timer s'ils existent
     let inGameScoreDisplay = document.getElementById('ingame-score-display');
-    if (!inGameScoreDisplay) {
-        inGameScoreDisplay = document.createElement('div');
-        inGameScoreDisplay.id = 'ingame-score-display';
-        // Style simple : jaune doré, gras, un peu d'espace
-        inGameScoreDisplay.style.color = '#f0b230';
-        inGameScoreDisplay.style.fontWeight = 'bold';
-        inGameScoreDisplay.style.fontSize = '1.1rem';
-        inGameScoreDisplay.style.marginTop = '5px';
-        inGameScoreDisplay.style.textTransform = 'uppercase';
-        // On l'ajoute au DOM mais la position sera réglée plus bas
-        modeBadge.parentNode.insertBefore(inGameScoreDisplay, modeBadge.nextSibling);
-    }
-
-    // Elément Timer (NOUVEAU)
     let inGameTimerDisplay = document.getElementById('ingame-timer-display');
-    if (!inGameTimerDisplay) {
-        inGameTimerDisplay = document.createElement('div');
-        inGameTimerDisplay.id = 'ingame-timer-display';
-        // STYLE DU TIMER : Identique au Score
-        inGameTimerDisplay.style.color = '#ffffff';
-        inGameTimerDisplay.style.fontWeight = 'bold';
-        inGameTimerDisplay.style.fontSize = '1.1rem';
-        inGameTimerDisplay.style.textTransform = 'uppercase';
-        inGameTimerDisplay.style.marginTop = '5px'; // Même espacement
-        
-        // Insertion
-        modeBadge.parentNode.insertBefore(inGameTimerDisplay, modeBadge.nextSibling);
+    
+    if (inGameScoreDisplay) inGameScoreDisplay.style.display = 'none';
+    if (inGameTimerDisplay) {
+        inGameTimerDisplay.style.display = 'none';
+        stopLiveTimer();
     }
-
-    // Reset affichage
-    inGameScoreDisplay.style.display = 'none';
-    inGameTimerDisplay.style.display = 'none';
-    stopLiveTimer();
 
     // 2. CONFIG SELON MODE
     if (gameMode === 'daily') {
@@ -985,25 +993,15 @@ function setupGameUI(isResuming = false, gameData = {}) {
         modeBadge.textContent = "MODE ENDURANCE 🔥";
         modeBadge.classList.add('classic');
         modeBadge.style.background = "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)";
-        modeBadge.style.border = "none";
-
-        // Affichage Score
-        inGameScoreDisplay.style.display = 'block';
-        inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
-
-        // Affichage Timer et démarrage
-        inGameTimerDisplay.style.display = 'block';
-        startLiveTimer();
-
-        // Réorganisation visuelle : Badge -> Timer -> Score
-        // On déplace le timer APRES le badge
-        modeBadge.parentNode.insertBefore(inGameTimerDisplay, modeBadge.nextSibling);
-        // On déplace le score APRES le timer
-        modeBadge.parentNode.insertBefore(inGameScoreDisplay, inGameTimerDisplay.nextSibling);
-
-        if (streakCounter) {
-            streakCounter.style.display = 'block';
-            streakCounter.textContent = "Endurance actuelle : " + currentStreak;
+        
+        // Affichage Score & Timer pour le mode streak
+        if (inGameScoreDisplay) {
+            inGameScoreDisplay.style.display = 'block';
+            inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
+        }
+        if (inGameTimerDisplay) {
+            inGameTimerDisplay.style.display = 'block';
+            startLiveTimer();
         }
 
         lblGen.textContent = "GÉN:";
@@ -1011,12 +1009,27 @@ function setupGameUI(isResuming = false, gameData = {}) {
         valGen.style.textTransform = ""; 
         hintGen.classList.remove('visible'); 
 
+    } else if (gameMode === 'test') {
+        // --- NOUVEAU BLOC POUR LE MODE TEST ---
+        modeBadge.textContent = `TEST ADMIN (ID: ${targetPokemon.id})`;
+        modeBadge.classList.remove('classic');
+        modeBadge.style.background = "";
+        modeBadge.style.backgroundColor = "#f0b230"; // Couleur jaune admin
+        modeBadge.style.color = "#000";
+
+        lblGen.textContent = "GÉN:";
+        valGen.textContent = targetPokemon.gen; // On affiche direct la gen en test pour vérifier
+        valGen.style.textTransform = "";
+        hintGen.classList.add('visible');
+        valGen.classList.add('revealed');
+
     } else {
         // Classic Random
         modeBadge.textContent = "MODE ALÉATOIRE";
         modeBadge.classList.add('classic');
         modeBadge.style.background = ""; 
         modeBadge.style.backgroundColor = "var(--btn-neutral)";
+        modeBadge.style.color = "#fff";
 
         lblGen.textContent = "GÉN:";
         const unselected = allGenerations.filter(g => !activeFilters.includes(g));
@@ -1050,7 +1063,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
         if (targetWord[i] === '.') knownLetters[i] = '.';
     }
 
-    // Si on ne reprend pas une partie, on s'assure que tout est à zéro
     if (!isResuming) {
         currentRow = 0;
         currentGuess = targetWord[0];
@@ -1059,22 +1071,14 @@ function setupGameUI(isResuming = false, gameData = {}) {
         savedGuesses = gameData.guesses || [];
         currentRow = gameData.currentRow || 0;
         
-        // CORRECTION BUG DOUBLE LIGNE : 
-        // Si le statut est "round-won", on ne doit pas avancer à la ligne suivante.
-        // On reste sur la dernière ligne jouée (la ligne gagnante).
         if (gameData.status === 'round-won') {
              currentRow = savedGrid.length > 0 ? savedGrid.length - 1 : 0;
-             // On remet le mot gagnant dans currentGuess pour l'affichage correct
              currentGuess = savedGuesses[currentRow] || targetWord;
-             // Si on reprend un round gagné, on arrête le timer visuel (il est figé)
              stopLiveTimer();
-             if(inGameTimerDisplay) inGameTimerDisplay.textContent = formatDuration(accumulatedTime);
         } else {
-            // Comportement standard pour une partie en cours
             if (currentRow === 0 && savedGrid.length > 0) {
                 currentRow = savedGrid.length;
             }
-            
             if (gameData.currentGuess && gameData.currentGuess.length > 0) {
                 currentGuess = gameData.currentGuess;
             } else {
@@ -1083,7 +1087,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
         }
     }
 
-    // CONSTRUCTION DE LA GRILLE (C'est ici que ça se joue !)
+    // Construction de la grille
     board.innerHTML = "";
     board.style.setProperty('--cols', wordLength);
     for (let i = 0; i < maxGuesses * wordLength; i++) {
@@ -1765,4 +1769,6 @@ function checkAndSaveWeeklyStreak(streakScore, duration = 0) {
     }).catch((err) => {
         console.error("Erreur sauvegarde hebdo:", err);
     });
+
+    
 }

@@ -415,3 +415,29 @@ button:disabled { background-color: var(--btn-disabled) !important; cursor: not-
 }
 .admin-popup-card { max-width: 400px !important; }
 .menu-section-inner { display: flex; flex-direction: column; gap: 10px; }
+
+/* --- AJOUT POUR L'INPUT ADMIN --- */
+.admin-input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background-color: #222;
+    color: white;
+    font-size: 1.1rem;
+    text-align: center;
+    font-weight: bold;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.admin-input:focus {
+    border-color: var(--present);
+    background-color: #111;
+}
+
+.admin-input::placeholder {
+    color: #555;
+    font-weight: normal;
+}
