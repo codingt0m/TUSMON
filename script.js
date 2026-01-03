@@ -127,6 +127,14 @@ function saveStreakState() {
         return;
     }
 
+    // --- MODIFICATION : Règle d'abandon ---
+    // Si le joueur est à 0 de streak et n'a pas encore validé de mot (row 0),
+    // le retour au menu correspond à un abandon (on ne sauvegarde pas).
+    if (currentStreak === 0 && currentRow === 0) {
+        localStorage.removeItem('tusmon_streak_state');
+        return;
+    }
+
     const currentTotalTime = accumulatedTime + (Date.now() - gameStartTime);
 
     const state = {
@@ -637,10 +645,14 @@ function showMenu() {
         if (storedStreak) {
             try {
                 const sData = JSON.parse(storedStreak);
-                if (sData) {
+                // AJOUT : Vérification que ce n'est pas une partie "vide" (score 0, rien validé)
+                // Si streak == 0 ET que la grille est vide (guesses.length === 0 ou n'existe pas), on ne propose pas de reprendre.
+                if (sData && !(sData.streak === 0 && (!sData.guesses || sData.guesses.length === 0) && (!sData.currentGuess || sData.currentGuess.length <= 1))) {
                     btnStreakStart.textContent = `REPRENDRE ENDURANCE (${sData.streak})`;
                 } else {
                     btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
+                    // Nettoyage préventif
+                    localStorage.removeItem('tusmon_streak_state');
                 }
             } catch(e) {
                 btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
@@ -749,6 +761,10 @@ function startDailyGame() {
     savedGrid = [];
     savedGuesses = [];
     
+    // IMPORTANT : Réinitialiser le temps accumulé pour le mode Quotidien
+    // car on se base sur l'heure de début originale vs maintenant
+    accumulatedTime = 0; 
+
     const todayKey = getTodayDateKey();
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
     let gameData = null;
@@ -805,13 +821,18 @@ function startStreakGame() {
                 console.log("Reprise de la série...");
                 
                 currentStreak = data.streak || 0;
-                targetPokemon = pokemonList.find(p => p.id === data.targetId);
+                
+                // UTILISATION DE == pour comparaison souple (string vs number)
+                targetPokemon = pokemonList.find(p => p.id == data.targetId);
+                
                 accumulatedTime = data.elapsedTime || 0;
                 gameStartTime = Date.now();
 
                 if (!targetPokemon) {
+                    // Si on ne retrouve pas le pokemon (id changé ?), on en prend un autre mais on garde le streak
+                    console.warn("Pokemon id not found:", data.targetId);
                     pickRandomPokemon();
-                    setupGameUI(false);
+                    setupGameUI(false); // On lance une nouvelle UI propre
                     return;
                 }
 
@@ -819,7 +840,7 @@ function startStreakGame() {
                     setupGameUI(true, data);
                     showMessage("Bravo ! Endurance : " + currentStreak + " 🔥");
                     isGameOver = true;
-                    stopLiveTimer(); // On arrête le chrono si c'est gagné
+                    stopLiveTimer(); 
                     
                     document.getElementById('keyboard-cont').style.display = 'none';
                     if (validateBtn) validateBtn.style.display = 'none';
@@ -827,13 +848,14 @@ function startStreakGame() {
                     if (nextStreakBtn) nextStreakBtn.style.display = 'inline-block';
                     
                     if (targetPokemon && targetPokemon.id) {
-                         const type = 'regular';
+                         const type = 'regular'; // Toujours regular pour le résultat (ou shiny si géré ailleurs)
                          resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
                          resultImg.style.display = 'block';
                     }
                    
                 } else {
-                   
+                    // C'est ici que la magie opère pour restaurer la grille
+                    setupGameUI(true, data);
                 }
                 return;
             }
@@ -1038,6 +1060,12 @@ function setupGameUI(isResuming = false, gameData = {}) {
         valGen.textContent = ""; 
         valGen.style.textTransform = ""; 
         hintGen.classList.remove('visible'); 
+
+        // AJOUT: Affichage du timer pour le Daily
+        if (inGameTimerDisplay) {
+            inGameTimerDisplay.style.display = 'block';
+            startLiveTimer();
+        }
 
     } else if (gameMode === 'streak') {
         modeBadge.textContent = "MODE ENDURANCE 🔥";
