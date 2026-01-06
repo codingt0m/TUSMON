@@ -1813,35 +1813,34 @@ function loadWeeklyLeaderboard() {
 function checkAndSaveWeeklyStreak(streakScore, duration = 0, totalAttempts = 0) {
     if (!currentUser || !db) return;
     
-    // On ne sauvegarde pas les scores de 0
     if (streakScore <= 0) return;
 
     const weekKey = getCurrentWeekKey();
     const userRef = db.collection('weekly_streaks').doc(weekKey).collection('players').doc(currentUser.uid);
 
-    // On utilise une transaction pour lire puis écrire de manière sûre
     db.runTransaction((transaction) => {
         return transaction.get(userRef).then((doc) => {
             if (!doc.exists) {
-                // Pas encore de score cette semaine, on crée
+                // Création nouveau score
                 transaction.set(userRef, {
                     handle: currentUser.displayName || "Joueur",
                     photoURL: currentUser.photoURL || null,
                     streak: streakScore,
                     duration: duration,
-                    totalAttempts: totalAttempts, // NOUVEAU CHAMP
+                    totalAttempts: totalAttempts, // C'est ce champ qui manquait !
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             } else {
                 const data = doc.data();
                 const currentBest = data.streak || 0;
-                // Si le nouveau score est meilleur, on met à jour
+                
                 if (streakScore > currentBest) {
+                    // Mise à jour meilleur score
                     transaction.update(userRef, {
                         streak: streakScore,
                         duration: duration, 
-                        totalAttempts: totalAttempts, // MAJ DU CHAMP
-                        handle: currentUser.displayName || "Joueur", // Mise à jour du pseudo au cas où
+                        totalAttempts: totalAttempts, // Mise à jour du champ
+                        handle: currentUser.displayName || "Joueur",
                         photoURL: currentUser.photoURL || null,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -1850,7 +1849,7 @@ function checkAndSaveWeeklyStreak(streakScore, duration = 0, totalAttempts = 0) 
         });
     }).then(() => {
         console.log("Score hebdo vérifié/mis à jour.");
-        loadWeeklyLeaderboard(); // Rafraîchir l'affichage
+        loadWeeklyLeaderboard();
     }).catch((err) => {
         console.error("Erreur sauvegarde hebdo:", err);
     });
