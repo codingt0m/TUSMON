@@ -28,6 +28,7 @@ let isGameOver = false;
 let isProcessing = false;
 let gameMode = 'daily'; // 'daily', 'classic', 'streak', 'test'
 let currentStreak = 0; // Score de chaîne
+let currentStreakAttempts = 0; // Cumul des essais pour la moyenne
 let knownLetters = []; 
 let fixedLength = 0; 
 let activeFilters = []; 
@@ -366,9 +367,11 @@ function deleteScore(type, userId) {
     });
 }
 
+// --- CLASSEMENT DU JOUR (Modifié : En-tête "Essais" + Chiffre seul) ---
 function loadLeaderboard() {
     if (!db) return;
 
+    // Gestion du titre et de la date (inchangé)
     const leaderboardSection = document.getElementById('leaderboard-section');
     if (leaderboardSection) {
         const titleEl = leaderboardSection.querySelector('.menu-title');
@@ -397,15 +400,13 @@ function loadLeaderboard() {
 
     const dateKey = getTodayDateKey();
     const leaderboardDiv = document.getElementById('leaderboard-container');
-    
-    // Vérification Admin
     const isAdmin = currentUser && currentUser.displayName === '@suedlemot';
 
     db.collection('daily_scores').doc(dateKey).collection('players')
         .orderBy('won', 'desc') 
         .orderBy('attempts', 'asc') 
         .orderBy('timestamp', 'asc') 
-        .limit(20) // Augmenté un peu pour voir plus de monde
+        .limit(20)
         .get()
         .then((querySnapshot) => {
             if (querySnapshot.empty) {
@@ -413,13 +414,25 @@ function loadLeaderboard() {
                 return;
             }
 
-            let html = '<table>';
+            let html = '<table><thead><tr>';
+            html += '<th style="width:30px">#</th>';
+            html += '<th>Joueur</th>';
+            html += '<th style="text-align:right">Essais</th>'; // MODIFIÉ ICI
+            html += '<th style="text-align:right">Temps</th>';
+            if(isAdmin) html += '<th></th>';
+            html += '</tr></thead><tbody>';
+
             let rank = 1;
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                let scoreDisplay = data.won ? `${data.attempts} essai${data.attempts > 1 ? 's' : ''}` : "Perdu";
+                
+                // MODIFICATION ICI : On affiche juste le chiffre data.attempts
+                let scoreDisplay = data.won ? data.attempts : "Perdu";
                 const color = data.won ? '#538d4e' : '#d9534f';
-                const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
+                
+                const styles = (currentUser && currentUser.uid === doc.id) 
+                    ? 'font-weight:bold; color:#fff; background-color: rgba(255,255,255,0.05);' 
+                    : 'color:#ccc;';
                 
                 let timeDisplay = "";
                 if (data.won && data.duration) {
@@ -434,10 +447,9 @@ function loadLeaderboard() {
                 let userLink = data.handle || 'Anonyme';
                 if (data.handle && data.handle.startsWith('@')) {
                     const twitterUser = data.handle.substring(1);
-                    userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none; hover:text-decoration: underline;">${data.handle}</a>`;
+                    userLink = `<a href="https://twitter.com/${twitterUser}" target="_blank" style="color: inherit; text-decoration: none;">${data.handle}</a>`;
                 }
 
-                // Bouton Delete (Admin seulement)
                 let deleteBtn = "";
                 if (isAdmin) {
                     deleteBtn = `<td style="width:20px; text-align:right;">
@@ -445,9 +457,8 @@ function loadLeaderboard() {
                     </td>`;
                 }
 
-                // MODIFICATION : Inversion colonnes Score et Temps
                 html += `<tr style="${styles}">
-                            <td style="width:20px;">#${rank}</td>
+                            <td>${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${crownHtml}</div><span>${userLink}</span></div></td>
                             <td style="text-align:right; color:${color}">${scoreDisplay}</td>
                             <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
@@ -455,12 +466,94 @@ function loadLeaderboard() {
                          </tr>`;
                 rank++;
             });
-            html += '</table>';
+            html += '</tbody></table>';
             leaderboardDiv.innerHTML = html;
         })
         .catch((error) => {
             console.error("Erreur leaderboard:", error);
             leaderboardDiv.innerHTML = '<p style="text-align:center; color:#d9534f;">Erreur chargement...</p>';
+        });
+}
+
+// --- CLASSEMENT HEBDO (Mise à jour pour cohérence structurelle) ---
+function loadWeeklyLeaderboard() {
+    if (!db) return;
+
+    const weeklyContainer = document.getElementById('weekly-leaderboard-container');
+    const weeklyDateLabel = document.getElementById('weekly-date');
+    const weekKey = getCurrentWeekKey();
+    const isAdmin = currentUser && currentUser.displayName === '@suedlemot';
+
+    if (weeklyDateLabel) {
+        const d = new Date(weekKey);
+        const options = { day: 'numeric', month: 'short' };
+        weeklyDateLabel.textContent = "Semaine du " + d.toLocaleDateString('fr-FR', options);
+    }
+
+    db.collection('weekly_streaks').doc(weekKey).collection('players')
+        .orderBy('streak', 'desc') 
+        .orderBy('timestamp', 'asc') 
+        .limit(20)
+        .get()
+        .then((querySnapshot) => {
+            if (querySnapshot.empty) {
+                weeklyContainer.innerHTML = '<p style="text-align:center; color:#888; font-style:italic; font-size:0.8rem;">Aucune endurance cette semaine.</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            html += '<th style="width:30px">#</th>';
+            html += '<th>Joueur</th>';
+            html += '<th style="text-align:right">Score</th>'; // On garde Score pour l'endurance
+            html += '<th style="text-align:right">Temps</th>';
+            if(isAdmin) html += '<th></th>';
+            html += '</tr></thead><tbody>';
+
+            let rank = 1;
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const color = '#f0b230'; 
+                const styles = (currentUser && currentUser.uid === doc.id) 
+                    ? 'font-weight:bold; color:#fff; background-color: rgba(255,255,255,0.05);' 
+                    : 'color:#ccc;';
+                
+                let timeDisplay = "";
+                if (data.duration) {
+                    timeDisplay = formatDuration(data.duration);
+                }
+
+                const imgHtml = data.photoURL 
+                    ? `<img src="${data.photoURL}" class="profile-pic" alt="pic">` 
+                    : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
+                
+                let iconHtml = rank === 1 ? '<span class="crown-emoji">🔥</span>' : '';
+                let userLink = data.handle || 'Anonyme';
+                if (data.handle && data.handle.startsWith('@')) {
+                    userLink = data.handle; 
+                }
+
+                let deleteBtn = "";
+                if (isAdmin) {
+                    deleteBtn = `<td style="width:20px; text-align:right;">
+                        <button class="btn-delete-score" onclick="deleteScore('weekly', '${doc.id}')" title="Supprimer">✕</button>
+                    </td>`;
+                }
+
+                html += `<tr style="${styles}">
+                            <td>${rank}</td>
+                            <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${iconHtml}</div><span>${userLink}</span></div></td>
+                            <td style="text-align:right; color:${color}; font-weight:bold;">${data.streak}</td>
+                            <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
+                            ${deleteBtn}
+                         </tr>`;
+                rank++;
+            });
+            html += '</tbody></table>';
+            weeklyContainer.innerHTML = html;
+        })
+        .catch((error) => {
+            console.error("Erreur classement hebdo:", error);
+            weeklyContainer.innerHTML = '<p style="text-align:center; color:#d9534f;">Erreur...</p>';
         });
 }
 
@@ -822,6 +915,8 @@ function startStreakGame() {
                 console.log("Reprise de la série...");
                 
                 currentStreak = data.streak || 0;
+                // RECUPERATION DU CUMUL
+                currentStreakAttempts = data.streakAttempts || 0;
                 
                 // UTILISATION DE == pour comparaison souple (string vs number)
                 targetPokemon = pokemonList.find(p => p.id == data.targetId);
@@ -830,10 +925,9 @@ function startStreakGame() {
                 gameStartTime = Date.now();
 
                 if (!targetPokemon) {
-                    // Si on ne retrouve pas le pokemon (id changé ?), on en prend un autre mais on garde le streak
                     console.warn("Pokemon id not found:", data.targetId);
                     pickRandomPokemon();
-                    setupGameUI(false); // On lance une nouvelle UI propre
+                    setupGameUI(false); 
                     return;
                 }
 
@@ -849,13 +943,11 @@ function startStreakGame() {
                     if (nextStreakBtn) nextStreakBtn.style.display = 'inline-block';
                     
                     if (targetPokemon && targetPokemon.id) {
-                         const type = 'regular'; // Toujours regular pour le résultat (ou shiny si géré ailleurs)
+                         const type = 'regular'; 
                          resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
                          resultImg.style.display = 'block';
                     }
-                   
                 } else {
-                    // C'est ici que la magie opère pour restaurer la grille
                     setupGameUI(true, data);
                 }
                 return;
@@ -867,6 +959,7 @@ function startStreakGame() {
 
     // Nouvelle partie
     currentStreak = 0; 
+    currentStreakAttempts = 0; // RESET
     savedGrid = [];
     savedGuesses = [];
     currentRow = 0;
@@ -877,6 +970,40 @@ function startStreakGame() {
     
     pickRandomPokemon();
     setupGameUI(false);
+}
+
+function saveStreakState() {
+    if (gameMode !== 'streak' || !targetPokemon) return;
+    
+    if (isGameOver && document.getElementById('next-streak-btn').style.display === 'none') {
+        localStorage.removeItem('tusmon_streak_state');
+        return;
+    }
+
+    if (currentStreak === 0 && currentRow === 0) {
+        localStorage.removeItem('tusmon_streak_state');
+        return;
+    }
+
+    const currentTotalTime = accumulatedTime + (Date.now() - gameStartTime);
+
+    const state = {
+        streak: currentStreak,
+        streakAttempts: currentStreakAttempts, // SAUVEGARDE CUMUL
+        targetId: targetPokemon.id,
+        currentRow: currentRow,
+        currentGuess: currentGuess,
+        grid: savedGrid,
+        guesses: savedGuesses,
+        elapsedTime: currentTotalTime, 
+        status: 'in-progress' 
+    };
+    
+    if (isGameOver) {
+        state.status = 'round-won';
+    }
+
+    localStorage.setItem('tusmon_streak_state', JSON.stringify(state));
 }
 
 // Fonction appelée quand on gagne et qu'on clique sur "Suivant"
@@ -1482,7 +1609,6 @@ function checkGuess() {
         }
     });
 
-    // SAUVEGARDE QUOTIDIENNE
     if (gameMode === 'daily') {
         savedGrid.push(rowResult);
         savedGuesses.push(currentGuess);
@@ -1492,11 +1618,9 @@ function checkGuess() {
         currentRow--; 
         currentGuess = guessArray.join(''); 
     }
-    // SAUVEGARDE SÉRIE (Ajouté ici pour sauvegarder à chaque coup)
     else if (gameMode === 'streak') {
         savedGrid.push(rowResult);
         savedGuesses.push(currentGuess);
-        // On sauvegarde l'état avant de savoir si c'est fini ou non
         currentRow++; 
         currentGuess = "";
         saveStreakState();
@@ -1528,18 +1652,15 @@ function checkGuess() {
             
             if (gameMode === 'streak') {
                 currentStreak++;
-                // Mise à jour visuelle du compteur menu (si existant)
+                // --- MODIFICATION ICI : On ajoute le nombre d'essais au cumul ---
+                currentStreakAttempts += (currentRow + 1); 
+                
                 if (streakCounter) streakCounter.textContent = "Série actuelle : " + currentStreak;
                 
-                // Mise à jour visuelle du score en jeu
                 const inGameScoreDisplay = document.getElementById('ingame-score-display');
                 if (inGameScoreDisplay) inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
 
                 winMsg = "Bravo ! Endurance : " + currentStreak + " 🔥";
-                
-                // Sauvegarde après victoire du round (pour pouvoir reprendre)
-                // Note : saveStreakState sera appelé dans endGame -> saveStreakState (si non game over)
-                // Mais ici on n'a pas encore mis isGameOver à true, donc on le fait manuellement après
             }
 
             showMessage(winMsg);
@@ -1607,8 +1728,6 @@ function giveUp() {
 
 function endGame(isVictory, isShiny = false) {
     isGameOver = true;
-    
-    // Arrêt du timer visuel car la partie est finie
     stopLiveTimer();
     
     keyboardCont.style.display = 'none';
@@ -1617,14 +1736,12 @@ function endGame(isVictory, isShiny = false) {
     if (targetPokemon && targetPokemon.id) {
         const type = isShiny ? 'shiny' : 'regular';
         resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
-        
         resultImg.onerror = function() {
             if (this.src.includes('shiny')) {
                 this.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/regular.png`;
                 this.onerror = null; 
             }
         };
-        
         resultImg.style.display = 'block';
     }
 
@@ -1642,32 +1759,27 @@ function endGame(isVictory, isShiny = false) {
     } 
     else if (gameMode === 'streak') {
         if (isVictory) {
-            // Victoire en streak : on propose le suivant
             restartBtn.style.display = "none"; 
             if (nextStreakBtn) nextStreakBtn.style.display = "inline-block";
-            // On sauvegarde l'état "gagné mais pas fini" pour pouvoir reprendre
             saveStreakState();
             
-            // AJOUT : Sauvegarde du record hebdo même si on continue
-            checkAndSaveWeeklyStreak(currentStreak, accumulatedTime); // Note: accumulatedTime a été mis à jour dans nextStreakLevel mais ici on sauvegarde le temps jusqu'à la victoire
+            // --- MAJ : On passe currentStreakAttempts à la fonction de sauvegarde ---
+            checkAndSaveWeeklyStreak(currentStreak, accumulatedTime, currentStreakAttempts); 
 
         } else {
-            // Défaite en streak : on affiche le score final et le bouton Rejouer
             messageEl.textContent += ` (Endurance finie : ${currentStreak})`;
             restartBtn.style.display = "inline-block"; 
-            restartBtn.textContent = "Recommencer l'endurance"; // Petit bonus UX
+            restartBtn.textContent = "Recommencer l'endurance"; 
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
             
-            // AJOUT : Sauvegarde finale du record
             const finalTime = accumulatedTime + (Date.now() - gameStartTime);
-            checkAndSaveWeeklyStreak(currentStreak, finalTime);
+            // --- MAJ : On passe currentStreakAttempts aussi ici ---
+            checkAndSaveWeeklyStreak(currentStreak, finalTime, currentStreakAttempts);
             
-            // Suppression de la sauvegarde car perdu
             localStorage.removeItem('tusmon_streak_state');
         }
     }
     else {
-        // Classic Random
         restartBtn.style.display = "inline-block"; 
         restartBtn.textContent = "Rejouer";
     }
@@ -1675,6 +1787,48 @@ function endGame(isVictory, isShiny = false) {
     giveupBtn.style.display = "none"; 
 }
 
+function checkAndSaveWeeklyStreak(streakScore, duration = 0, totalAttempts = 0) {
+    if (!currentUser || !db) return;
+    
+    if (streakScore <= 0) return;
+
+    const weekKey = getCurrentWeekKey();
+    const userRef = db.collection('weekly_streaks').doc(weekKey).collection('players').doc(currentUser.uid);
+
+    db.runTransaction((transaction) => {
+        return transaction.get(userRef).then((doc) => {
+            if (!doc.exists) {
+                transaction.set(userRef, {
+                    handle: currentUser.displayName || "Joueur",
+                    photoURL: currentUser.photoURL || null,
+                    streak: streakScore,
+                    duration: duration,
+                    totalAttempts: totalAttempts, // NOUVEAU CHAMP
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                const data = doc.data();
+                const currentBest = data.streak || 0;
+                
+                if (streakScore > currentBest) {
+                    transaction.update(userRef, {
+                        streak: streakScore,
+                        duration: duration, 
+                        totalAttempts: totalAttempts, // MAJ DU CHAMP
+                        handle: currentUser.displayName || "Joueur",
+                        photoURL: currentUser.photoURL || null,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }
+        });
+    }).then(() => {
+        console.log("Score hebdo vérifié/mis à jour.");
+        loadWeeklyLeaderboard();
+    }).catch((err) => {
+        console.error("Erreur sauvegarde hebdo:", err);
+    });
+}
 function generateEmojiGrid() {
     const todayKey = getTodayDateKey();
     const storedData = localStorage.getItem('tusmon_daily_' + todayKey);
@@ -1744,8 +1898,6 @@ function loadWeeklyLeaderboard() {
     const weeklyContainer = document.getElementById('weekly-leaderboard-container');
     const weeklyDateLabel = document.getElementById('weekly-date');
     const weekKey = getCurrentWeekKey();
-
-    // Vérification Admin
     const isAdmin = currentUser && currentUser.displayName === '@suedlemot';
 
     if (weeklyDateLabel) {
@@ -1765,16 +1917,30 @@ function loadWeeklyLeaderboard() {
                 return;
             }
 
-            let html = '<table>';
+            // AJOUT COLONNE MOY.
+            let html = '<table><thead><tr>';
+            html += '<th style="width:30px">#</th>';
+            html += '<th>Joueur</th>';
+            html += '<th style="text-align:right">Score</th>';
+            html += '<th style="text-align:right" title="Moyenne d\'essais par Pokémon">Moy.</th>';
+            html += '<th style="text-align:right">Temps</th>';
+            if(isAdmin) html += '<th></th>';
+            html += '</tr></thead><tbody>';
+
             let rank = 1;
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 const color = '#f0b230'; 
-                const styles = (currentUser && currentUser.uid === doc.id) ? 'font-weight:bold; color:#fff;' : 'color:#ccc;';
+                const styles = (currentUser && currentUser.uid === doc.id) 
+                    ? 'font-weight:bold; color:#fff; background-color: rgba(255,255,255,0.05);' 
+                    : 'color:#ccc;';
                 
-                let timeDisplay = "";
-                if (data.duration) {
-                    timeDisplay = formatDuration(data.duration);
+                let timeDisplay = data.duration ? formatDuration(data.duration) : "--";
+                
+                // CALCUL MOYENNE
+                let avgDisplay = "-";
+                if (data.totalAttempts && data.streak > 0) {
+                    avgDisplay = (data.totalAttempts / data.streak).toFixed(1);
                 }
 
                 const imgHtml = data.photoURL 
@@ -1782,13 +1948,11 @@ function loadWeeklyLeaderboard() {
                     : `<div class="profile-pic" style="background:#444; display:inline-block; width:24px; height:24px; border-radius:50%;"></div>`;
                 
                 let iconHtml = rank === 1 ? '<span class="crown-emoji">🔥</span>' : '';
-                
                 let userLink = data.handle || 'Anonyme';
                 if (data.handle && data.handle.startsWith('@')) {
                     userLink = data.handle; 
                 }
 
-                // Bouton Delete (Admin seulement)
                 let deleteBtn = "";
                 if (isAdmin) {
                     deleteBtn = `<td style="width:20px; text-align:right;">
@@ -1796,17 +1960,17 @@ function loadWeeklyLeaderboard() {
                     </td>`;
                 }
 
-                // MODIFICATION : Inversion colonnes Streak et Temps
                 html += `<tr style="${styles}">
-                            <td style="width:20px;">#${rank}</td>
+                            <td>${rank}</td>
                             <td><div class="user-cell"><div class="profile-pic-wrapper">${imgHtml}${iconHtml}</div><span>${userLink}</span></div></td>
                             <td style="text-align:right; color:${color}; font-weight:bold;">${data.streak}</td>
+                            <td style="text-align:right; font-size:0.9rem; color:#aaa;">${avgDisplay}</td>
                             <td style="text-align:right; font-size:0.85rem; color:#888;">${timeDisplay}</td>
                             ${deleteBtn}
                          </tr>`;
                 rank++;
             });
-            html += '</table>';
+            html += '</tbody></table>';
             weeklyContainer.innerHTML = html;
         })
         .catch((error) => {
@@ -1814,7 +1978,6 @@ function loadWeeklyLeaderboard() {
             weeklyContainer.innerHTML = '<p style="text-align:center; color:#d9534f;">Erreur...</p>';
         });
 }
-
 // 3. Sauvegarder le score Hebdo (Uniquement si c'est le meilleur score de la semaine)
 function checkAndSaveWeeklyStreak(streakScore, duration = 0) {
     if (!currentUser || !db) return;
