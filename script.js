@@ -352,38 +352,36 @@ function deleteScore(type, userId) {
 }
 
 // --- CLASSEMENT DU JOUR (Modifié : En-tête "Essais" + Chiffre seul) ---
+// --- CLASSEMENT DU JOUR ---
 function loadLeaderboard() {
     if (!db) return;
 
-    // Gestion du titre et de la date (inchangé)
+    // Gestion du titre et de la date
     const leaderboardSection = document.getElementById('leaderboard-section');
     if (leaderboardSection) {
         const titleEl = leaderboardSection.querySelector('.menu-title');
         if (titleEl) {
             titleEl.textContent = "Classement du Jour 🏆";
+            
+            // Formatage de la date : Mardi 6 Janvier
             const now = new Date();
             const options = { weekday: 'long', day: 'numeric', month: 'long' };
             let dateStr = now.toLocaleDateString('fr-FR', options);
+            
+            // Capitalisation de chaque mot
             dateStr = dateStr.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
-            let dateEl = document.getElementById('leaderboard-date-subtitle');
-            if (!dateEl) {
-                dateEl = document.createElement('div');
-                dateEl.id = 'leaderboard-date-subtitle';
-                dateEl.style.fontWeight = 'normal';
-                dateEl.style.fontSize = '0.95rem';
-                dateEl.style.color = '#ddd'; 
-                dateEl.style.textAlign = 'center';
-                dateEl.style.marginTop = '-5px'; 
-                dateEl.style.marginBottom = '10px';
-                titleEl.parentNode.insertBefore(dateEl, titleEl.nextSibling);
+            // Cible l'élément de date existant dans le HTML (qui a déjà le style gris/italique)
+            let dateEl = document.getElementById('leaderboard-date');
+            if (dateEl) {
+                dateEl.textContent = dateStr;
             }
-            dateEl.textContent = dateStr;
         }
     }
 
     const dateKey = getTodayDateKey();
     const leaderboardDiv = document.getElementById('leaderboard-container');
+    // On récupère le statut admin depuis la variable globale currentUser
     const isAdmin = currentUser && currentUser.displayName === '@suedlemot';
 
     db.collection('daily_scores').doc(dateKey).collection('players')
@@ -401,7 +399,7 @@ function loadLeaderboard() {
             let html = '<table><thead><tr>';
             html += '<th style="width:30px">#</th>';
             html += '<th>Joueur</th>';
-            html += '<th style="text-align:right">Essais</th>'; // MODIFIÉ ICI
+            html += '<th style="text-align:right">Essais</th>';
             html += '<th style="text-align:right">Temps</th>';
             if(isAdmin) html += '<th></th>';
             html += '</tr></thead><tbody>';
@@ -410,7 +408,6 @@ function loadLeaderboard() {
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 
-                // MODIFICATION ICI : On affiche juste le chiffre data.attempts
                 let scoreDisplay = data.won ? data.attempts : "Perdu";
                 const color = data.won ? '#538d4e' : '#d9534f';
                 
@@ -637,24 +634,50 @@ function showMenu() {
 
     // Gestion de l'affichage du bouton STREAK (Reprendre ou Démarrer)
     const storedStreak = localStorage.getItem('tusmon_streak_state');
+    
+    // --- NOUVEAU : Vérification de la limite journalière ---
+    const streakDoneKey = 'tusmon_streak_done_' + todayKey;
+    const hasPlayedStreakToday = localStorage.getItem(streakDoneKey);
+
     if (btnStreakStart) {
+        // Reset par défaut
+        btnStreakStart.disabled = false;
+
         if (storedStreak) {
             try {
                 const sData = JSON.parse(storedStreak);
-                // AJOUT : Vérification que ce n'est pas une partie "vide" (score 0, rien validé)
-                // Si streak == 0 ET que la grille est vide (guesses.length === 0 ou n'existe pas), on ne propose pas de reprendre.
+                // Si une partie est sauvegardée et valide (non vide), on propose de REPRENDRE
+                // (Même si on a déjà joué aujourd'hui, on a le droit de finir sa partie d'hier)
                 if (sData && !(sData.streak === 0 && (!sData.guesses || sData.guesses.length === 0) && (!sData.currentGuess || sData.currentGuess.length <= 1))) {
                     btnStreakStart.textContent = `REPRENDRE ENDURANCE (${sData.streak})`;
                 } else {
-                    btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
-                    // Nettoyage préventif
+                    // Sauvegarde invalide ou vide -> On traite comme une nouvelle partie
                     localStorage.removeItem('tusmon_streak_state');
+                    
+                    if (hasPlayedStreakToday) {
+                        btnStreakStart.textContent = "REVENEZ DEMAIN";
+                        btnStreakStart.disabled = true;
+                    } else {
+                        btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
+                    }
                 }
             } catch(e) {
-                btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
+                // Erreur de lecture -> On assume nouvelle partie
+                if (hasPlayedStreakToday) {
+                    btnStreakStart.textContent = "REVENEZ DEMAIN";
+                    btnStreakStart.disabled = true;
+                } else {
+                    btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
+                }
             }
         } else {
-            btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
+            // Pas de sauvegarde -> Vérification de la limite
+            if (hasPlayedStreakToday) {
+                btnStreakStart.textContent = "REVENEZ DEMAIN";
+                btnStreakStart.disabled = true;
+            } else {
+                btnStreakStart.textContent = "DÉMARRER L'ENDURANCE";
+            }
         }
     }
 
@@ -1636,19 +1659,25 @@ function endGame(isVictory, isShiny = false) {
             if (nextStreakBtn) nextStreakBtn.style.display = "inline-block";
             saveStreakState();
             
-            // --- MAJ : On passe currentStreakAttempts à la fonction de sauvegarde ---
             checkAndSaveWeeklyStreak(currentStreak, accumulatedTime, currentStreakAttempts); 
 
         } else {
             messageEl.textContent += ` (Endurance finie : ${currentStreak})`;
             restartBtn.style.display = "inline-block"; 
             restartBtn.textContent = "Recommencer l'endurance"; 
+            // --- MODIFICATION : Désactiver le bouton rejouer immédiatement si on veut bloquer l'enchainement ---
+            // Pour l'UX, on peut laisser le bouton mais il renverra au menu qui sera bloqué, 
+            // ou bien on le cache direct. Ici je le laisse pour qu'il voit son score, 
+            // mais le retour menu bloquera la suite.
+            
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
             
             const finalTime = accumulatedTime + (Date.now() - gameStartTime);
-            // --- MAJ : On passe currentStreakAttempts aussi ici ---
             checkAndSaveWeeklyStreak(currentStreak, finalTime, currentStreakAttempts);
             
+            // --- NOUVEAU : On enregistre que le joueur a fini son essai du jour ---
+            localStorage.setItem('tusmon_streak_done_' + getTodayDateKey(), 'true');
+
             localStorage.removeItem('tusmon_streak_state');
         }
     }
@@ -1753,7 +1782,7 @@ function loadWeeklyLeaderboard() {
             html += '<th style="width:30px">#</th>';
             html += '<th>Joueur</th>';
             html += '<th style="text-align:right">Score</th>';
-            html += '<th style="text-align:right" title="Moyenne d\'essais par Pokémon">Moy.</th>';
+            html += '<th style="text-align:right" title="Moyenne d\'essais par Pokémon">Essais moy.</th>';
             html += '<th style="text-align:right">Temps</th>';
             if(isAdmin) html += '<th></th>';
             html += '</tr></thead><tbody>';
