@@ -1137,11 +1137,19 @@ function startTestGame() {
     setupGameUI(false);
 }
 
-// --- MISE À JOUR DE L'UI (Modifiée pour inclure le mode TEST) ---
+
+// --- MISE À JOUR DE L'UI (Modifiée pour inclure le LOG ADMIN) ---
 function setupGameUI(isResuming = false, gameData = {}) {
     menuScreen.style.display = 'none';
     gameArea.style.display = 'flex';
     keyboardCont.style.display = 'flex';
+
+    // --- AJOUT ADMIN : LOG DE LA RÉPONSE ---
+    if (currentUser && currentUser.displayName === '@suedlemot' && targetPokemon) {
+        console.log("%c 🎯 RÉPONSE (ADMIN) : " + targetPokemon.original, "color: #ffd700; font-weight: bold; font-size: 16px; background: #333; padding: 5px; border-radius: 4px;");
+        console.log("Détails:", targetPokemon);
+    }
+    // ---------------------------------------
 
     isGameOver = false;
     isProcessing = false;
@@ -1189,7 +1197,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
         valGen.style.textTransform = ""; 
         hintGen.classList.remove('visible'); 
 
-        // AJOUT: Affichage du timer pour le Daily
+        // Affichage du timer pour le Daily
         if (inGameTimerDisplay) {
             inGameTimerDisplay.style.display = 'block';
             startLiveTimer();
@@ -1216,7 +1224,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
         hintGen.classList.remove('visible'); 
 
     } else if (gameMode === 'test') {
-        // --- NOUVEAU BLOC POUR LE MODE TEST ---
         modeBadge.textContent = `TEST ADMIN (ID: ${targetPokemon.id})`;
         modeBadge.classList.remove('classic');
         modeBadge.style.background = "";
@@ -1224,7 +1231,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
         modeBadge.style.color = "#000";
 
         lblGen.textContent = "GÉN:";
-        valGen.textContent = targetPokemon.gen; // On affiche direct la gen en test pour vérifier
+        valGen.textContent = targetPokemon.gen; 
         valGen.style.textTransform = "";
         hintGen.classList.add('visible');
         valGen.classList.add('revealed');
@@ -1310,7 +1317,6 @@ function setupGameUI(isResuming = false, gameData = {}) {
     updateGrid(); 
     updateHints();
 }
-
 function restoreGameSession() {
     let globalKeyUpdates = {};
     const linesToRestore = savedGrid.length;
