@@ -17,6 +17,8 @@ const auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
 const db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
 let currentUser = null;
 
+let isAdmin = false; // Variable globale pour le statut admin
+
 // --- VARIABLES DU JEU ---
 let pokemonList = []; 
 let gamePool = [];    
@@ -256,6 +258,9 @@ function updateAuthUI(user) {
     const btnLogout = document.getElementById('btn-logout'); 
     const adminSection = document.getElementById('admin-section');
 
+    // MISE À JOUR DU STATUT ADMIN
+    isAdmin = user && user.displayName === '@suedlemot';
+
     if (user) {
         const handle = user.displayName || "Joueur";
         btnLogin.style.display = 'none';
@@ -264,10 +269,9 @@ function updateAuthUI(user) {
         
         if (btnLogout) btnLogout.style.display = 'block';
 
-        if (handle === '@suedlemot') {
-            if (adminSection) adminSection.style.display = 'flex';
-        } else {
-            if (adminSection) adminSection.style.display = 'none';
+        // Utilisation de isAdmin pour l'affichage du menu
+        if (adminSection) {
+            adminSection.style.display = isAdmin ? 'flex' : 'none';
         }
 
         const todayKey = getTodayDateKey();
@@ -277,7 +281,6 @@ function updateAuthUI(user) {
             try {
                 const result = JSON.parse(storedData);
                 if (result && result.status === 'completed') {
-                    console.log("Score local trouvé. Synchronisation...");
                     const duration = result.startTime ? (Date.now() - result.startTime) : 0;
                     saveScoreToFirebase(result.won, result.attempts, duration); 
                 }
@@ -290,7 +293,6 @@ function updateAuthUI(user) {
         btnLogin.style.display = 'inline-block';
         txtInfo.style.display = 'none';
         if (btnLogout) btnLogout.style.display = 'none';
-        
         if (adminSection) adminSection.style.display = 'none';
         
         loadLeaderboard();
@@ -331,40 +333,21 @@ function checkRemoteDailyStatus() {
 
 // --- FONCTION ADMIN : SUPPRIMER UN SCORE ---
 function deleteScore(type, userId) {
-    if (!currentUser || !db) return;
+    if (!db || !isAdmin) return; // Utilise isAdmin
     
-    // Sécurité basique côté client
-    if (currentUser.displayName !== '@suedlemot') {
-        alert("Action non autorisée.");
-        return;
-    }
-
-    if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer ce score définitivement ?")) {
-        return;
-    }
+    if (!confirm("⚠️ Supprimer ce score définitivement ?")) return;
 
     let docRef; 
-    
     if (type === 'daily') {
-        const dateKey = getTodayDateKey();
-        docRef = db.collection('daily_scores').doc(dateKey).collection('players').doc(userId);
+        docRef = db.collection('daily_scores').doc(getTodayDateKey()).collection('players').doc(userId);
     } else if (type === 'weekly') {
-        const weekKey = getCurrentWeekKey();
-        docRef = db.collection('weekly_streaks').doc(weekKey).collection('players').doc(userId);
-    } else {
-        return;
-    }
+        docRef = db.collection('weekly_streaks').doc(getCurrentWeekKey()).collection('players').doc(userId);
+    } else return;
 
-    // L'action de suppression réelle sur la base de données
     docRef.delete().then(() => {
-        console.log("Score supprimé avec succès de la BDD !");
-        // Mise à jour de l'affichage
         loadLeaderboard();
         loadWeeklyLeaderboard();
-    }).catch((error) => {
-        console.error("Erreur lors de la suppression : ", error);
-        alert("Erreur lors de la suppression.");
-    });
+    }).catch(err => console.error("Erreur suppression:", err));
 }
 
 // --- CLASSEMENT DU JOUR (Modifié : En-tête "Essais" + Chiffre seul) ---
@@ -1145,9 +1128,8 @@ function setupGameUI(isResuming = false, gameData = {}) {
     keyboardCont.style.display = 'flex';
 
     // --- AJOUT ADMIN : LOG DE LA RÉPONSE ---
-    if (currentUser && currentUser.displayName === '@suedlemot' && targetPokemon) {
+    if (isAdmin && targetPokemon) {
         console.log("%c 🎯 RÉPONSE (ADMIN) : " + targetPokemon.original, "color: #ffd700; font-weight: bold; font-size: 16px; background: #333; padding: 5px; border-radius: 4px;");
-        console.log("Détails:", targetPokemon);
     }
     // ---------------------------------------
 
