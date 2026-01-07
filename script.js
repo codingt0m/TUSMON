@@ -1644,6 +1644,7 @@ function endGame(isVictory, isShiny = false) {
     keyboardCont.style.display = 'none';
     if (validateBtn) validateBtn.style.display = 'none';
     
+    // Affichage de l'image du Pokémon (Résultat)
     if (targetPokemon && targetPokemon.id) {
         const type = isShiny ? 'shiny' : 'regular';
         resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
@@ -1655,6 +1656,30 @@ function endGame(isVictory, isShiny = false) {
         };
         resultImg.style.display = 'block';
     }
+
+    // --- CORRECTION SPECIAL DUEL ---
+    if (gameMode === 'duel') {
+        // En duel, "endGame" signifie la fin d'un ROUND (mot), pas de la partie entière,
+        // sauf si c'était le dernier mot.
+        
+        // Si c'est une victoire, le message est déjà géré dans checkGuess, 
+        // mais si c'est un abandon (giveUp), on doit gérer le message ici.
+        if (!isVictory) {
+             showMessage("Dommage ! C'était " + targetPokemon.original);
+        }
+
+        // On cache le bouton abandon pour éviter le spam
+        if (giveupBtn) giveupBtn.style.display = "none";
+
+        // On déclenche la suite du duel (passer au mot suivant ou attendre)
+        // On met un petit délai pour que le joueur voie quel était le Pokémon raté
+        setTimeout(() => {
+            handleDuelRoundEnd(isVictory);
+        }, 2000);
+
+        return; // ON ARRÊTE LA FONCTION ICI POUR LE DUEL
+    }
+    // -------------------------------
 
     if (gameMode === 'daily') {
         saveDailyState(); 
@@ -1673,35 +1698,25 @@ function endGame(isVictory, isShiny = false) {
             restartBtn.style.display = "none"; 
             if (nextStreakBtn) nextStreakBtn.style.display = "inline-block";
             saveStreakState();
-            
             checkAndSaveWeeklyStreak(currentStreak, accumulatedTime, currentStreakAttempts); 
-
         } else {
             messageEl.textContent += ` (Endurance finie : ${currentStreak})`;
             restartBtn.style.display = "inline-block"; 
             restartBtn.textContent = "Recommencer l'endurance"; 
-            // --- MODIFICATION : Désactiver le bouton rejouer immédiatement si on veut bloquer l'enchainement ---
-            // Pour l'UX, on peut laisser le bouton mais il renverra au menu qui sera bloqué, 
-            // ou bien on le cache direct. Ici je le laisse pour qu'il voit son score, 
-            // mais le retour menu bloquera la suite.
-            
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
-            
             const finalTime = accumulatedTime + (Date.now() - gameStartTime);
             checkAndSaveWeeklyStreak(currentStreak, finalTime, currentStreakAttempts);
-            
-            // --- NOUVEAU : On enregistre que le joueur a fini son essai du jour ---
             localStorage.setItem('tusmon_streak_done_' + getTodayDateKey(), 'true');
-
             localStorage.removeItem('tusmon_streak_state');
         }
     }
     else {
+        // Mode Classic / Test
         restartBtn.style.display = "inline-block"; 
         restartBtn.textContent = "Rejouer";
     }
     
-    giveupBtn.style.display = "none"; 
+    if (giveupBtn) giveupBtn.style.display = "none"; 
 }
 
 function generateEmojiGrid() {
@@ -2059,8 +2074,9 @@ function listenToDuel(code) {
              startDuelGame();
         }
 
+        // Dans la fonction listenToDuel(code) ...
         // Vérification de FIN DE PARTIE
-        // Si les deux ont fini (hostDone et guestDone sont true)
+        // On affiche les résultats SEULEMENT si hostDone ET guestDone sont true
         if (data.hostDone && data.guestDone) {
             showDuelFinalResults(data);
         }
@@ -2145,7 +2161,17 @@ function handleDuelRoundEnd(isWin) {
 
 function waitingForOpponent() {
     isGameOver = true;
-    showMessage("Vous avez fini ! En attente de l'adversaire... ⏳");
+    
+    // Nettoyage de l'interface pour l'attente
+    keyboardCont.style.display = 'none';
+    if(validateBtn) validateBtn.style.display = 'none';
+    if(giveupBtn) giveupBtn.style.display = 'none';
+    if(restartBtn) restartBtn.style.display = 'none';
+    resultImg.style.display = 'none'; // On cache le dernier pokemon pour cleaner
+    board.innerHTML = ''; // Optionnel : vider la grille pour faire propre
+    
+    // Message clair
+    messageEl.innerHTML = "Tu as terminé tes 5 mots.<br>En attente de l'adversaire... ⏳";
     
     // Signaler à Firestore que j'ai fini
     const doneField = isHost ? 'hostDone' : 'guestDone';
@@ -2153,7 +2179,6 @@ function waitingForOpponent() {
         [doneField]: true
     });
 }
-
 // 7. Affichage des résultats finaux (Animations)
 function showDuelFinalResults(data) {
     // Calcul du vainqueur
