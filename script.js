@@ -1637,6 +1637,7 @@ function giveUp() {
     endGame(false); 
 }
 
+// --- 1. FONCTION ENDGAME (Modifiée pour l'abandon fluide) ---
 function endGame(isVictory, isShiny = false) {
     isGameOver = true;
     stopLiveTimer();
@@ -1644,7 +1645,7 @@ function endGame(isVictory, isShiny = false) {
     keyboardCont.style.display = 'none';
     if (validateBtn) validateBtn.style.display = 'none';
     
-    // Affichage de l'image du Pokémon (Résultat)
+    // Affichage image résultat
     if (targetPokemon && targetPokemon.id) {
         const type = isShiny ? 'shiny' : 'regular';
         resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
@@ -1657,40 +1658,26 @@ function endGame(isVictory, isShiny = false) {
         resultImg.style.display = 'block';
     }
 
-    // --- CORRECTION SPECIAL DUEL ---
+    // --- LOGIQUE DUEL ---
     if (gameMode === 'duel') {
-        // En duel, "endGame" signifie la fin d'un ROUND (mot), pas de la partie entière,
-        // sauf si c'était le dernier mot.
-        
-        // Si c'est une victoire, le message est déjà géré dans checkGuess, 
-        // mais si c'est un abandon (giveUp), on doit gérer le message ici.
         if (!isVictory) {
              showMessage("Dommage ! C'était " + targetPokemon.original);
         }
-
-        // On cache le bouton abandon pour éviter le spam
         if (giveupBtn) giveupBtn.style.display = "none";
 
-        // On déclenche la suite du duel (passer au mot suivant ou attendre)
-        // On met un petit délai pour que le joueur voie quel était le Pokémon raté
-        setTimeout(() => {
-            handleDuelRoundEnd(isVictory);
-        }, 2000);
-
-        return; // ON ARRÊTE LA FONCTION ICI POUR LE DUEL
+        // IMPORTANT : On appelle directement la suite sans délai ici,
+        // car handleDuelRoundEnd gère déjà le délai de lecture (2s).
+        handleDuelRoundEnd(isVictory);
+        return; 
     }
-    // -------------------------------
+    // ---------------------
 
+    // Logique standard (Daily/Streak)
     if (gameMode === 'daily') {
         saveDailyState(); 
         restartBtn.style.display = "none"; 
         if (shareBtn) shareBtn.style.display = "inline-block";
-        
-        let duration = 0;
-        if (isVictory && gameStartTime > 0) {
-            duration = Date.now() - gameStartTime;
-        }
-        
+        let duration = isVictory && gameStartTime > 0 ? Date.now() - gameStartTime : 0;
         saveScoreToFirebase(isVictory, currentRow + 1, duration);
     } 
     else if (gameMode === 'streak') {
@@ -1711,12 +1698,65 @@ function endGame(isVictory, isShiny = false) {
         }
     }
     else {
-        // Mode Classic / Test
         restartBtn.style.display = "inline-block"; 
         restartBtn.textContent = "Rejouer";
     }
     
     if (giveupBtn) giveupBtn.style.display = "none"; 
+}
+
+// --- 2. GESTION FIN DE ROUND DUEL (Centralise le délai) ---
+function handleDuelRoundEnd(isWin) {
+    isProcessing = true; // Bloquer les inputs
+
+    // 1. Mise à jour score
+    if (isWin) {
+        myDuelScore++;
+        const updateField = isHost ? 'hostScore' : 'guestScore';
+        db.collection('active_duels').doc(duelId).update({
+            [updateField]: firebase.firestore.FieldValue.increment(1)
+        });
+    }
+
+    // 2. Préparation index suivant
+    duelIndex++;
+
+    // 3. Délai UNIQUE de 2 secondes pour voir le résultat du mot actuel
+    setTimeout(() => {
+        if (duelIndex < 5) {
+            loadDuelPokemon(duelIndex);
+        } else {
+            // C'est fini pour moi -> Écran d'attente
+            waitingForOpponent();
+        }
+    }, 2000); 
+}
+
+// --- 3. ECRAN D'ATTENTE (Nettoyage complet) ---
+function waitingForOpponent() {
+    isGameOver = true;
+    
+    // On cache tout pour être sûr que l'écran est propre
+    keyboardCont.style.display = 'none';
+    if(validateBtn) validateBtn.style.display = 'none';
+    if(giveupBtn) giveupBtn.style.display = 'none';
+    if(restartBtn) restartBtn.style.display = 'none';
+    if(resultImg) resultImg.style.display = 'none'; // On cache le dernier pokemon
+    
+    // On vide la grille pour éviter la confusion
+    if(board) board.innerHTML = ''; 
+
+    // Message clair
+    messageEl.innerHTML = `<div style="padding:20px; font-size:1.2rem;">
+        Tu as terminé tes 5 mots.<br><br>
+        <strong>En attente de l'adversaire... ⏳</strong>
+    </div>`;
+    
+    // Signaler à Firestore que j'ai fini
+    const doneField = isHost ? 'hostDone' : 'guestDone';
+    db.collection('active_duels').doc(duelId).update({
+        [doneField]: true
+    }).catch(err => console.error("Erreur update fin duel:", err));
 }
 
 function generateEmojiGrid() {
@@ -2074,7 +2114,7 @@ function listenToDuel(code) {
              startDuelGame();
         }
 
-        // Dans la fonction listenToDuel(code) ...
+        
         // Vérification de FIN DE PARTIE
         // On affiche les résultats SEULEMENT si hostDone ET guestDone sont true
         if (data.hostDone && data.guestDone) {
