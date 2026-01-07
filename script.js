@@ -1538,47 +1538,61 @@ function checkGuess() {
         updateKeyboardColors(foundLetters);
     }, rowTiles.length * 150);
 
+    // ... (début de checkGuess reste pareil)
+
     setTimeout(() => {
+        // --- VICTOIRE ---
         if (currentGuess === targetWord) {
-            // VICTOIRE
             let winMsg = targetPokemon.original + " ! Bravo !";
-            let isShiny = false; 
+            let isShiny = false;
             if (currentRow === 0) {
                 winMsg = "🔥 ONE SHOT ! (" + targetPokemon.original + ") 🔥";
                 isShiny = true;
                 triggerEmojiRain('✨');
             }
-            
-            if (gameMode === 'streak') {
-                currentStreak++;
-                // --- MODIFICATION ICI : On ajoute le nombre d'essais au cumul ---
-                currentStreakAttempts += (currentRow + 1); 
-                
-                if (streakCounter) streakCounter.textContent = "Série actuelle : " + currentStreak;
-                
-                const inGameScoreDisplay = document.getElementById('ingame-score-display');
-                if (inGameScoreDisplay) inGameScoreDisplay.textContent = "Endurance : " + currentStreak;
-
-                winMsg = "Bravo ! Endurance : " + currentStreak + " 🔥";
-            }
 
             showMessage(winMsg);
-            endGame(true, isShiny); 
 
-        } else if (currentRow === maxGuesses - 1) {
-            // DÉFAITE
+            // GESTION DUEL : VICTOIRE
+            if (gameMode === 'duel') {
+                 if (targetPokemon) {
+                     // Afficher l'image
+                     const type = isShiny ? 'shiny' : 'regular';
+                     resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/${type}.png`;
+                     resultImg.style.display = 'block';
+                 }
+                 // On passe au suivant en signalant une victoire (true)
+                 handleDuelRoundEnd(true); 
+                 return; 
+            }
+
+            endGame(true, isShiny); // Cas normal (Daily/Streak)
+
+        } 
+        // --- DÉFAITE ---
+        else if (currentRow === maxGuesses - 1) {
             showMessage("Perdu... C'était " + targetPokemon.original);
-            endGame(false); 
+            
+            // GESTION DUEL : DÉFAITE
+            if (gameMode === 'duel') {
+                if (targetPokemon) {
+                     resultImg.src = `https://raw.githubusercontent.com/Yarkis01/TyraDex/images/sprites/${targetPokemon.id}/regular.png`;
+                     resultImg.style.display = 'block';
+                 }
+                // On passe au suivant en signalant une défaite (false)
+                handleDuelRoundEnd(false); 
+                return;
+            }
+
+            endGame(false); // Cas normal (Daily/Streak)
+
         } else {
-            // TOUR SUIVANT
+            // TOUR SUIVANT (Même mot, essai suivant)
             currentRow++;
             currentGuess = targetWord[0];
             
-            if (gameMode === 'daily') {
-                saveDailyState(); 
-            } else if (gameMode === 'streak') {
-                saveStreakState();
-            }
+            if (gameMode === 'daily') saveDailyState(); 
+            else if (gameMode === 'streak') saveStreakState();
             
             updateGrid();
             updateHints();
@@ -1586,6 +1600,7 @@ function checkGuess() {
         }
     }, Math.max(guessArray.length, wordLength) * 200);
 }
+
 
 function updateKeyboardColors(updates) {
     for (const [char, state] of Object.entries(updates)) {
