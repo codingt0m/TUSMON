@@ -28,7 +28,7 @@ let currentGuess = "";
 let currentRow = 0;
 let isGameOver = false;
 let isProcessing = false;
-let gameMode = 'daily'; // 'daily', 'classic', 'streak', 'test'
+let gameMode = 'daily'; // 'daily', 'classic', 'streak', 'test', 'duel'
 let currentStreak = 0; // Score de chaîne
 let currentStreakAttempts = 0; // Cumul des essais pour la moyenne
 let knownLetters = []; 
@@ -352,7 +352,6 @@ function deleteScore(type, userId) {
 }
 
 // --- CLASSEMENT DU JOUR (Modifié : En-tête "Essais" + Chiffre seul) ---
-// --- CLASSEMENT DU JOUR ---
 function loadLeaderboard() {
     if (!db) return;
 
@@ -1036,7 +1035,7 @@ function setupGameUI(isResuming = false, gameData = {}) {
     keyboardCont.style.display = 'flex';
 
     if (gameMode !== 'duel') {
-   document.getElementById('duel-status-bar').style.display = 'none';
+        document.getElementById('duel-status-bar').style.display = 'none';
     }
     // --- AJOUT ADMIN : LOG DE LA RÉPONSE ---
     if (isAdmin && targetPokemon) {
@@ -1538,8 +1537,6 @@ function checkGuess() {
         updateKeyboardColors(foundLetters);
     }, rowTiles.length * 150);
 
-    // ... (début de checkGuess reste pareil)
-
     setTimeout(() => {
         // --- VICTOIRE ---
         if (currentGuess === targetWord) {
@@ -1943,236 +1940,8 @@ function resetPlayerDaily() {
         alert("Erreur : " + error.message);
     });
 }
-// --- LOGIQUE MODE DUEL ---
 
-let duelId = null;
-let isHost = false;
-let duelPokemonIds = []; // Les 5 ID à deviner
-let duelIndex = 0; // À quel index du tableau duelPokemonIds on est (0 à 4)
-let duelUnsubscribe = null; // Pour arrêter l'écoute Firebase
-let myDuelScore = 0;
-
-// 1. UI Helpers
-function showCreateDuelUI() {
-    document.getElementById('duel-menu-buttons').style.display = 'none';
-    document.getElementById('duel-create-ui').style.display = 'block';
-    createDuelSession();
-}
-
-function showJoinDuelUI() {
-    document.getElementById('duel-menu-buttons').style.display = 'none';
-    document.getElementById('duel-join-ui').style.display = 'flex'; // flex pour layout input/btn
-}
-
-function cancelDuelSetup() {
-    if (duelUnsubscribe) duelUnsubscribe();
-    // Si on était host et qu'on annule, on supprime la room (optionnel mais propre)
-    if (isHost && duelId) {
-        db.collection('active_duels').doc(duelId).delete();
-    }
-    
-    duelId = null;
-    document.getElementById('duel-create-ui').style.display = 'none';
-    document.getElementById('duel-join-ui').style.display = 'none';
-    document.getElementById('duel-menu-buttons').style.display = 'flex';
-}
-
-// 2. Création de session (Host)
-function createDuelSession() {
-    if (!currentUser) { alert("Vous devez être connecté pour créer un duel !"); cancelDuelSetup(); return; }
-    
-    // Générer un code à 4 chiffres
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    duelId = code;
-    isHost = true;
-    document.getElementById('duel-code-display').textContent = code;
-
-    // Tirer 5 Pokémon au hasard
-    const selection = [];
-    for(let i=0; i<5; i++) {
-        const rand = Math.floor(Math.random() * pokemonList.length);
-        selection.push(pokemonList[rand].id);
-    }
-    duelPokemonIds = selection;
-
-    // Créer doc Firestore
-    db.collection('active_duels').doc(code).set({
-        host: currentUser.displayName,
-        guest: null,
-        pokemonIds: selection,
-        hostProgress: 0,
-        guestProgress: 0,
-        status: 'waiting',
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-        listenToDuel(code);
-    });
-}
-
-// 3. Rejoindre session (Guest)
-function joinDuel() {
-    if (!currentUser) { alert("Connectez-vous pour jouer !"); return; }
-    const code = document.getElementById('duel-code-input').value.trim();
-    if (code.length !== 4) return;
-
-    db.collection('active_duels').doc(code).get().then((doc) => {
-        if (!doc.exists) {
-            alert("Session introuvable !");
-            return;
-        }
-        const data = doc.data();
-        if (data.status !== 'waiting') {
-            alert("Cette partie a déjà commencé ou est pleine.");
-            return;
-        }
-
-        // Rejoindre
-        duelId = code;
-        isHost = false;
-        duelPokemonIds = data.pokemonIds;
-        
-        db.collection('active_duels').doc(code).update({
-            guest: currentUser.displayName,
-            status: 'playing',
-            startTime: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(() => {
-            listenToDuel(code);
-        });
-    });
-}
-
-// 4. Écoute temps réel (Le cœur du système)
-function listenToDuel(code) {
-    duelUnsubscribe = db.collection('active_duels').doc(code).onSnapshot((doc) => {
-        if (!doc.exists) return;
-        const data = doc.data();
-
-        // Mise à jour UI scores
-        const myProg = isHost ? data.hostProgress : data.guestProgress;
-        const oppProg = isHost ? data.guestProgress : data.hostProgress;
-        const oppName = isHost ? (data.guest || "...") : data.host;
-
-        const duelBar = document.getElementById('duel-status-bar');
-        if (duelBar) {
-            document.getElementById('duel-my-prog').textContent = `Moi: ${myProg}/5`;
-            document.getElementById('duel-opp-prog').textContent = `${oppName}: ${oppProg}/5`;
-        }
-
-        // Démarrage du jeu (Host détecte que Guest a rejoint)
-        if (isHost && data.status === 'playing' && menuScreen.style.display !== 'none') {
-            startDuelGame();
-        }
-        // Démarrage du jeu (Guest détecte son propre join)
-        if (!isHost && data.status === 'playing' && menuScreen.style.display !== 'none') {
-            startDuelGame();
-        }
-
-        // Détection Fin de partie
-        if (data.status === 'finished') {
-            endDuel(data);
-        }
-    });
-}
-
-// 5. Lancement de la boucle de jeu Duel
-function startDuelGame() {
-    gameMode = 'duel';
-    duelIndex = 0;
-    myDuelScore = 0;
-    
-    // UI Setup
-    document.getElementById('duel-status-bar').style.display = 'flex';
-    document.getElementById('next-streak-btn').style.display = 'none'; // On gère le suivant auto ou via bouton spécifique
-    
-    loadDuelPokemon(0);
-}
-
-function loadDuelPokemon(index) {
-    if (index >= 5) {
-        // Fin de ma série, j'attends l'autre
-        showMessage("Série terminée ! En attente du résultat final...");
-        isGameOver = true;
-        checkDuelEnd();
-        return;
-    }
-
-    // Charger le Pokémon spécifique par ID
-    const targetId = duelPokemonIds[index];
-    // On utilise == car l'id du CSV est string, parfois number
-    targetPokemon = pokemonList.find(p => p.id == targetId);
-
-    // Reset du board standard
-    savedGrid = [];
-    savedGuesses = [];
-    currentRow = 0;
-    currentGuess = "";
-    isGameOver = false;
-    
-    setupGameUI(false); // Réutilise ta fonction existante
-    
-    // Surcharge visuelle pour le duel
-    modeBadge.textContent = `DUEL (Poké ${index + 1}/5)`;
-    modeBadge.style.backgroundColor = "#3498db";
-}
-
-// 6. Appelé quand on trouve un Pokémon en duel
-function onDuelWin() {
-    duelIndex++;
-    
-    // Mise à jour Firestore
-    const updateField = isHost ? 'hostProgress' : 'guestProgress';
-    db.collection('active_duels').doc(duelId).update({
-        [updateField]: duelIndex
-    });
-
-    setTimeout(() => {
-        if (duelIndex < 5) {
-            loadDuelPokemon(duelIndex);
-        } else {
-            // J'ai fini mes 5
-            showMessage("Terminé ! 🏁");
-            checkDuelEnd();
-        }
-    }, 1500); // Petite pause pour voir la victoire
-}
-
-// Vérifier si le duel est totalement fini (les deux ont fini ou abandonné ?)
-// Note: Dans une version simple, dès qu'un joueur atteint 5, le jeu peut s'arrêter ou on attend l'autre.
-// Ici, on va dire que le premier à 5 déclenche la fin "globale" dans Firestore si on veut une course pure.
-function checkDuelEnd() {
-    if (duelIndex === 5) {
-        // Je signale que j'ai fini. 
-        // Si on veut que le premier arrivé gagne immédiatement :
-        db.collection('active_duels').doc(duelId).update({
-            status: 'finished',
-            winner: isHost ? 'host' : 'guest' // Celui qui écrit ça en premier a gagné techniquement
-        });
-    }
-}
-
-function endDuel(data) {
-    isGameOver = true;
-    stopLiveTimer();
-    keyboardCont.style.display = 'none';
-    
-    let msg = "";
-    if (data.winner === (isHost ? 'host' : 'guest')) {
-        msg = "🏆 VICTOIRE ! Tu as été plus rapide !";
-        triggerEmojiRain('🏆');
-    } else {
-        msg = "💀 DÉFAITE ! L'adversaire a fini avant toi.";
-    }
-    
-    // Écran de fin custom ou alert
-    showMessage(msg);
-    setTimeout(() => {
-        if(confirm(msg + "\nRetour au menu ?")) {
-            if (duelUnsubscribe) duelUnsubscribe();
-            showMenu();
-        }
-    }, 1000);
-
-    // --- LOGIQUE MODE DUEL CORRIGÉE ---
+// --- LOGIQUE MODE DUEL CORRIGÉE ---
 
 let duelId = null;
 let isHost = false;
@@ -2426,5 +2195,4 @@ function showDuelFinalResults(data) {
     }
 
     overlay.style.display = 'flex';
-}
 }
