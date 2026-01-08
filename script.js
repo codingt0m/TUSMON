@@ -1647,8 +1647,11 @@ function endGame(isVictory, isShiny = false) {
             checkAndSaveWeeklyStreak(currentStreak, accumulatedTime, currentStreakAttempts); 
         } else {
             messageEl.textContent += ` (Endurance finie : ${currentStreak})`;
-            restartBtn.style.display = "inline-block"; 
+            
+            // --- MODIFICATION : CACHER LE BOUTON RESTART ---
+            restartBtn.style.display = "none"; 
             restartBtn.textContent = "Recommencer l'endurance"; 
+            
             if (nextStreakBtn) nextStreakBtn.style.display = "none";
             const finalTime = accumulatedTime + (Date.now() - gameStartTime);
             checkAndSaveWeeklyStreak(currentStreak, finalTime, currentStreakAttempts);
