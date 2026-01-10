@@ -1376,7 +1376,7 @@ function updateGrid() {
             }
         } 
         else {
-            if (knownLetters[i]) {
+            if (knownLetters[i] && (!/[A-Z]/.test(knownLetters[i]) || currentGuess.length <= fixedLength)) {
                 char = knownLetters[i];
                 className += " correct"; 
             }
