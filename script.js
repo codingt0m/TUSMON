@@ -2,6 +2,14 @@
 // La variable firebaseConfig est chargée depuis config.js
 
 // Initialiser Firebase
+console.log(`
+  ________  _______ __  _______  _   __
+ /_  __/ / / / ___//  |/  / __ \\/ | / /
+  / / / / / /\\__ \\/ /|_/ / / / /  |/ / 
+ / / / /_/ /___/ / /  / / /_/ / /|  /  
+/_/  \\____//____/_/  /_/\\____/_/ |_/
+`);
+
 if (typeof firebase !== 'undefined') {
     // Vérification de sécurité
     if (typeof firebaseConfig === 'undefined') {
@@ -91,6 +99,7 @@ const genPopup = document.getElementById('gen-popup');
 const genImg = document.getElementById('gen-img');
 
 const keyboardLayout = ["AZERTYUIOP", "QSDFGHJKLM", "WXCVBN"];
+
 
 // --- GESTION SAUVEGARDE ET FERMETURE ---
 
@@ -1547,6 +1556,14 @@ function checkGuess() {
 
             showMessage(winMsg);
 
+            // --- AJOUT CORRECTIF ICI ---
+            // On incrémente le streak AVANT de sauvegarder, sinon le score reste à 0
+            if (gameMode === 'streak') {
+                currentStreak++; 
+                currentStreakAttempts += (currentRow + 1);
+            }
+            // ---------------------------
+
             endGame(true, isShiny); // Cas normal (Daily/Streak)
 
         } 
@@ -1643,8 +1660,14 @@ function endGame(isVictory, isShiny = false) {
         if (isVictory) {
             restartBtn.style.display = "none"; 
             if (nextStreakBtn) nextStreakBtn.style.display = "inline-block";
+            
             saveStreakState();
-            checkAndSaveWeeklyStreak(currentStreak, accumulatedTime, currentStreakAttempts); 
+            
+            // --- CORRECTION DU TEMPS ---
+            // On calcule le temps total incluant le round actuel
+            const currentTotalTime = accumulatedTime + (Date.now() - gameStartTime);
+            checkAndSaveWeeklyStreak(currentStreak, currentTotalTime, currentStreakAttempts); 
+            // ---------------------------
         } else {
             messageEl.textContent += ` (Endurance finie : ${currentStreak})`;
             
@@ -1719,6 +1742,10 @@ function shareDailyResult() {
 // 1. Calculer la clé de la semaine (Ex: "2023-10-23" pour le lundi de la semaine)
 function getCurrentWeekKey() {
     const d = new Date();
+
+    // CORRECTION : On force l'heure à midi pour éviter les problèmes de timezone
+    d.setHours(12, 0, 0, 0); 
+
     const day = d.getDay(); // 0 (Dimanche) à 6 (Samedi)
     // On veut que la semaine commence le Lundi.
     // Si on est dimanche (0), on recule de 6 jours. Sinon on recule de (jour - 1).
